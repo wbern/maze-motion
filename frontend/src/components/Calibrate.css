@@ -4,6 +4,11 @@
     align-items: center;
 }
 
+.calibrateControls {
+    flex: 1;
+    display: flex;
+}
+
 .block {
     font-size: 1px;
     height: 10px;
@@ -20,6 +25,7 @@
 }
 
 .imageContainer {
+    user-select: none;
     display: flex;
     width: 640px;
     height: 480px;

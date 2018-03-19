@@ -1,7 +1,7 @@
 import openSocket from "socket.io-client";
 
 import React, { Component } from "react";
-import logo from "./logo.svg";
+// import logo from "./logo.svg";
 import "./App.css";
 
 import Calibrate from "./components/Calibrate";
@@ -21,6 +21,9 @@ class App extends Component {
         this.socket.on("activeSection", activeSection => {
             this.setState({ activeSection });
         });
+        this.socket.on("loadedSection", loadedSectionInfo => {
+            this.setState({ loadedSectionInfo });
+        });
     }
 
     setView(view) {
@@ -32,7 +35,18 @@ class App extends Component {
     getView() {
         switch (this.state.view) {
             case enums.CALIBRATE:
-                return <Calibrate />;
+                return (
+                    <Calibrate
+                        loadedSectionInfo={this.state.loadedSectionInfo}
+                        loadSection={index => {
+                            debugger;
+                            this.socket.emit("loadSection", index);
+                        }}
+                        saveSection={(section, index) =>
+                            this.socket.emit("saveSection", section, index)
+                        }
+                    />
+                );
             case enums.VIEW:
                 return <div>view</div>;
             default:

@@ -9,10 +9,7 @@ var server = http.listen(8080, function() {
 });
 var io = require("socket.io").listen(server);
 
-io.on("connection", function(socket) {
-    console.log("a user connected");
-});
-
+// endpoints
 app.get("/image", function(req, res) {
     let mat = wCap.read();
     let image = cv.imencode(".jpg", mat);
@@ -21,30 +18,64 @@ app.get("/image", function(req, res) {
     res.status(200).send(base64Image);
 });
 
+// db stuff
+const low = require("lowdb");
+const FileSync = require("lowdb/adapters/FileSync");
+
+const adapter = new FileSync("db.json");
+const db = low(adapter);
+
+// Set some defaults (required if your JSON file is empty)
+db.defaults({ sections: [], users: {}, playcounts: 0 }).write();
+
+// Add a post
+// db
+//     .get("sections")
+// .push({ id: 1, title: "lowdb is awesome" })
+// .write();
+
+// Set a user using Lodash shorthand syntax
+// db.set("user.name", "typicode").write();
+
+// Increment count
+// db.update("count", n => n + 1).write();
+
+io.on("connection", function(socket) {
+    console.log("a user connected");
+    socket.on("saveSection", data => {
+        // webpage wants to save section data
+        db
+            .get("sections")
+            .nth(data.index)
+            .assign(data.section)
+            .write();
+    });
+
+    socket.on("loadSection", index => {
+        console.log("loadSection");
+        const section = db
+            .get("sections")
+            .nth(index)
+            .value();
+
+        socket.emit("loadedSection", { section, index });
+    });
+});
+// motion stuff
 // open capture from webcam
 const devicePort = 0;
 const wCap = new cv.VideoCapture(devicePort);
 wCap.set(cv.CAP_PROP_FRAME_WIDTH, 320);
 wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 240);
 
-// // let frame1 = wCap.read();
+// let frame1 = wCap.read();
 // let frame1 = cv.imread("./image1.png");
-// frame1.cvtColor(cv.COLOR_BGR2GRAY);
-// // let image1 = cv.imencode(".ppm", frame1);
-// // cv.imwrite("./image1.png", frame1);
-
-// let frame2 = cv.imread("./image2.png");
-// // frame1.cvtColor(cv.COLOR_BGR2GRAY);
-// // let image2 = cv.imencode(".ppm", frame2);
-// // cv.imwrite("./image2.png", frame1);
-
-// // works but crude
-// // let diff = frame2.absdiff(frame1);
-// // cv.imwrite("./image_diff.png", diff);
+// let image1 = cv.imencode(".ppm", frame1);
+// cv.imwrite("./image1.png", frame1);
 
 const sections = [
-    { x: 0, y: 0, width: 160, height: 120 },
-    { x: 161, y: 121, width: 159, height: 119 }
+    [{ x: 0, y: 0, width: 160, height: 120 }],
+    [{ x: 161, y: 121, width: 159, height: 119 }]
 ];
 
 let mog2 = new cv.BackgroundSubtractorMOG2();
@@ -59,7 +90,7 @@ const fetchActiveSection = () => {
 
         // repeat
         io.emit("activeSection", activeSection);
-        setTimeout(fetchActiveSection, 4000);
+        setTimeout(fetchActiveSection, 10000);
     });
 };
 fetchActiveSection();
