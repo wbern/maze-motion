@@ -24,9 +24,10 @@ const FileSync = require("lowdb/adapters/FileSync");
 
 const adapter = new FileSync("db.json");
 const db = low(adapter);
+global.db = db;
 
 // Set some defaults (required if your JSON file is empty)
-db.defaults({ sections: [], users: {}, playcounts: 0 }).write();
+db.defaults({ sections: {}, users: {}, playcounts: 0 }).write();
 
 // Add a post
 // db
@@ -46,19 +47,24 @@ io.on("connection", function(socket) {
         // webpage wants to save section data
         db
             .get("sections")
-            .nth(data.index)
-            .assign(data.section)
+            .set(data.index, { zones: data.zones })
             .write();
+        // db
+        //     .get("sections")
+        //     .nth(data.index)
+        //     .assign(data)
+        //     .write();
     });
 
+    
     socket.on("loadSection", index => {
         console.log("loadSection");
-        const section = db
+        const result = db
             .get("sections")
-            .nth(index)
+            .get(index)
             .value();
 
-        socket.emit("loadedSection", { section, index });
+        socket.emit("loadedSection", Object.assign({index}, result));
     });
 });
 // motion stuff

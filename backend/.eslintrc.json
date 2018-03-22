@@ -6,6 +6,11 @@
     "globals": {
         "io": true
     },
+    "parserOptions": {
+        "ecmaFeatures": {
+            "experimentalObjectRestSpread": true
+        }
+    },
     "extends": "eslint:recommended",
     "rules": {
         "indent": ["error", 4],

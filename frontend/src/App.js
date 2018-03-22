@@ -17,13 +17,16 @@ class App extends Component {
 
         this.state = {};
 
+        this.loadedActiveSection = this.loadedActiveSection.bind(this);
+    }
+
+    componentWillMount() {
         this.socket = openSocket("http://localhost:8080");
-        this.socket.on("activeSection", activeSection => {
-            this.setState({ activeSection });
-        });
-        this.socket.on("loadedSection", loadedSectionInfo => {
-            this.setState({ loadedSectionInfo });
-        });
+        this.socket.on("activeSection", this.loadedActiveSection);
+    }
+
+    loadedActiveSection(activeSection) {
+        this.setState({ activeSection });
     }
 
     setView(view) {
@@ -35,18 +38,7 @@ class App extends Component {
     getView() {
         switch (this.state.view) {
             case enums.CALIBRATE:
-                return (
-                    <Calibrate
-                        loadedSectionInfo={this.state.loadedSectionInfo}
-                        loadSection={index => {
-                            debugger;
-                            this.socket.emit("loadSection", index);
-                        }}
-                        saveSection={(section, index) =>
-                            this.socket.emit("saveSection", section, index)
-                        }
-                    />
-                );
+                return <Calibrate socket={this.socket} />;
             case enums.VIEW:
                 return <div>view</div>;
             default:

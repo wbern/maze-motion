@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import openSocket from "socket.io-client";
 
 import "./Calibrate.css";
 
@@ -23,6 +24,16 @@ class Calibrate extends Component {
         this.loadGrid = this.loadGrid.bind(this);
         this.saveGrid = this.saveGrid.bind(this);
         this.sectionIndexChange = this.sectionIndexChange.bind(this);
+
+        this.loadedSection = this.loadedSection.bind(this);
+    }
+
+    componentDidMount() {
+        this.props.socket.on("loadedSection", this.loadedSection);
+    }
+
+    loadedSection(loadedSectionInfo) {
+        this.parseLoadedSection(loadedSectionInfo.zones);
     }
 
     sectionIndexChange(e) {
@@ -41,21 +52,25 @@ class Calibrate extends Component {
         this.grid = initialGrid;
     }
 
-    onComponentWillReceiveProps(nextProps) {
-        if (nextProps.loadedSectionInfo) {
-            if (this.props.loadedSectionInfo.index !== nextProps.loadedSectionInfo.index) {
-                this.loadSection(this.props.loadedSectionInfo.section)
-            }
-        }
-    }
+    // componentWillReceiveProps(nextProps) {
+    //     if (nextProps.loadedSectionInfo) {
+    //         if (
+    //             !this.props.loadedSectionInfo ||
+    //             JSON.stringify(this.props.loadedSectionInfo) !==
+    //                 JSON.stringify(nextProps.loadedSectionInfo)
+    //         ) {
+    //             this.parseLoadedSection(nextProps.loadedSectionInfo.zones);
+    //         }
+    //     }
+    // }
 
-    loadSection(section) {
+    parseLoadedSection(zones) {
         this.resetGrid();
-        
+
         // revert to the grid
-        section.forEach(area => {
-            this.grid[area.x / 10][area.y / 10] = 1;
-        })
+        zones.forEach(zone => {
+            this.grid[zone.x / 10][zone.y / 10] = 1;
+        });
 
         this.setState({
             lastDrawn: null
@@ -64,7 +79,7 @@ class Calibrate extends Component {
 
     loadGrid(e) {
         e.preventDefault();
-        this.props.loadSection(this.state.sectionIndexInputValue)
+        this.props.socket.emit("loadSection", this.state.sectionIndexInputValue);
         // e.target.children.sectionIndex.value
         this.resetGrid();
         this.setState({
@@ -73,11 +88,15 @@ class Calibrate extends Component {
         // this.loadedSections[]
     }
 
+    saveSection(zones, index) {
+        this.props.socket.emit("saveSection", { zones, index });
+    }
+
     generateSectionFromGrid(grid) {
         const section = [];
 
-        grid.forEach((rows, rowIndex) => {
-            rows.forEach((col, colIndex) => {
+        grid.forEach((rows, colIndex) => {
+            rows.forEach((col, rowIndex) => {
                 if (col === 1) {
                     // enabled
                     section.push({ y: rowIndex * 10, x: colIndex * 10, width: 10, height: 10 });
@@ -90,7 +109,7 @@ class Calibrate extends Component {
 
     saveGrid(e) {
         e.preventDefault();
-        this.props.saveSection(
+        this.saveSection(
             this.generateSectionFromGrid(this.grid),
             this.state.sectionIndexInputValue
         );
