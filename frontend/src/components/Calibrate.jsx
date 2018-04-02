@@ -42,7 +42,7 @@ class Calibrate extends Component {
         });
     }
 
-    resetGrid() {
+    resetGrid(stateChange = true) {
         // always assume blocks should be 10px for now
         const initialGrid = new Array(64);
         for (let i = 0; i < initialGrid.length; i++) {
@@ -50,6 +50,12 @@ class Calibrate extends Component {
         }
 
         this.grid = initialGrid;
+
+        if (stateChange) {
+            this.setState({
+                lastDrawn: null
+            });
+        }
     }
 
     // componentWillReceiveProps(nextProps) {
@@ -65,16 +71,18 @@ class Calibrate extends Component {
     // }
 
     parseLoadedSection(zones) {
-        this.resetGrid();
+        // revert to the grid, if it exists
+        if (zones) {
+            zones.forEach(zone => {
+                this.grid[zone.x / 10][zone.y / 10] = 1;
+            });
 
-        // revert to the grid
-        zones.forEach(zone => {
-            this.grid[zone.x / 10][zone.y / 10] = 1;
-        });
-
-        this.setState({
-            lastDrawn: null
-        });
+            this.setState({
+                lastDrawn: null
+            });
+        } else {
+            this.resetGrid();
+        }
     }
 
     loadGrid(e) {
@@ -82,10 +90,6 @@ class Calibrate extends Component {
         this.props.socket.emit("loadSection", this.state.sectionIndexInputValue);
         // e.target.children.sectionIndex.value
         this.resetGrid();
-        this.setState({
-            lastDrawn: null
-        });
-        // this.loadedSections[]
     }
 
     saveSection(zones, index) {
@@ -115,6 +119,28 @@ class Calibrate extends Component {
         );
     }
 
+    performOnBlocks(rowIndexString, colIndexString, callback) {
+        const rowIndex = Number(rowIndexString);
+        const colIndex = Number(colIndexString);
+        const initialR = Number(this.initialBlock[0]);
+        const initialC = Number(this.initialBlock[1]);
+
+        // to make sure we can also go backwards
+        const rowInvertValue = (rowIndex - initialR) / Math.abs(rowIndex - initialR) || 1;
+        const colInvertValue = (colIndex - initialC) / Math.abs(colIndex - initialC) || 1;
+
+        // * start at last point
+        // * iterate backwards until below 0
+        for (let currentRow = Math.abs(rowIndex - initialR); currentRow >= 0; currentRow--) {
+            for (let currentCol = Math.abs(colIndex - initialC); currentCol >= 0; currentCol--) {
+                callback(
+                    (initialR + currentRow * rowInvertValue).toString(),
+                    (initialC + currentCol * colInvertValue).toString()
+                );
+            }
+        }
+    }
+
     blockHover(e) {
         if (this.mouseDown) {
             const [rowIndex, colIndex] = e.target.id.split("-");
@@ -122,7 +148,11 @@ class Calibrate extends Component {
                 // first block, set drawmode
                 this.drawMode = this.grid[rowIndex][colIndex] === 0 ? 1 : 0;
             }
-            this.grid[rowIndex][colIndex] = this.drawMode;
+            // draw the tiles
+            this.resetGrid(false);
+            this.performOnBlocks(rowIndex, colIndex, (r, c) => {
+                this.grid[r][c] = this.drawMode;
+            });
             this.setState({
                 lastDrawn: e.target.id
             });
@@ -131,6 +161,7 @@ class Calibrate extends Component {
 
     onMouseDown(e) {
         this.mouseDown = true;
+        this.initialBlock = e.target.id.split("-");
         this.blockHover(e);
     }
 
@@ -161,9 +192,10 @@ class Calibrate extends Component {
                     <img className="image" src={this.state.base64Image} alt="Loading" />
                     <div className="grid">
                         {this.grid.map((rows, rowIndex) => (
-                            <div>
+                            <div key={rowIndex}>
                                 {rows.map((col, colIndex) => (
                                     <div
+                                        key={colIndex}
                                         onMouseDown={this.onMouseDown}
                                         onMouseUp={this.onMouseUp}
                                         onMouseEnter={this.blockHover}
