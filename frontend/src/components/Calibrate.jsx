@@ -6,7 +6,6 @@ class Calibrate extends Component {
     constructor(props) {
         super(props);
 
-        this.resetGrid();
         this.state = {
             sectionIndexInputValue: 1
         };
@@ -22,6 +21,8 @@ class Calibrate extends Component {
     }
 
     componentDidMount() {
+        this.resetGrid();
+        
         this.props.socket.on("loadedSection", this.loadedSection);
         this.props.socket.on("activeImage", this.setImage.bind(this));
         this.props.socket.on("activeSection", activeSection => {
@@ -80,7 +81,11 @@ class Calibrate extends Component {
         // revert to the grid, if it exists
         if (zones) {
             zones.forEach(zone => {
-                this.grid[zone.x / 10][zone.y / 10] = 1;
+                for(var yOffset = (zone.height / 10) - 1; yOffset >= 0; yOffset--) {
+                    for(var xOffset = (zone.width / 10) - 1; xOffset >= 0; xOffset--) {
+                        this.grid[(zone.x / 10) + xOffset][(zone.y / 10) + yOffset] = 1;
+                    }
+                }
             });
 
             this.setState({
@@ -201,7 +206,7 @@ class Calibrate extends Component {
                 <div className="imageContainer">
                     <img className="image" src={this.state.base64Image} alt="Loading" />
                     <div className="grid">
-                        {this.grid.map((rows, rowIndex) => (
+                        {this.grid && this.grid.map((rows, rowIndex) => (
                             <div key={rowIndex}>
                                 {rows.map((col, colIndex) => (
                                     <div

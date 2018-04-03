@@ -1,6 +1,7 @@
 const cv = require("opencv4nodejs");
 // const path = require("path");
 const getActiveSection = require("./lib/getActiveSection");
+const simplifyZones = require("./lib/simplifyZones");
 
 var app = require("express")();
 var http = require("http").Server(app);
@@ -28,6 +29,7 @@ io.on("connection", function(socket) {
     console.log("a user connected");
     socket.on("saveSection", data => {
         // webpage wants to save section data
+        data.zones = simplifyZones(data.zones);
         db.writeSection(data.index, data.zones);
     });
 
@@ -68,15 +70,19 @@ const fetchActiveSection = () => {
         const maskImage = cv.imencode(".jpg", mask);
         const base64MaskImage = new Buffer(maskImage).toString("base64");
 
-        const activeSectionIndex = getActiveSection(db.getSections(), mask);
-        const zones = db.getSection(activeSectionIndex);
-        console.log(activeSectionIndex);
+        getActiveSection(db.getSections(), mask).then(activeSectionIndex => {
+            // only emit something if there's a change
+            if (activeSectionIndex !== null) {
+                const zones = db.getSection(activeSectionIndex);
+                console.log(activeSectionIndex);
 
-        // repeat
-        io.emit("activeMask", base64MaskImage);
-        io.emit("activeImage", base64CameraImage);
-        io.emit("activeSection", Object.assign({ index: activeSectionIndex }, zones));
-        setTimeout(fetchActiveSection, 3000);
+                // repeat
+                io.emit("activeMask", base64MaskImage);
+                io.emit("activeImage", base64CameraImage);
+                io.emit("activeSection", Object.assign({ index: activeSectionIndex }, zones));
+            }
+            setTimeout(fetchActiveSection, 3000);
+        });
     });
 };
 fetchActiveSection();
