@@ -1,5 +1,5 @@
 const cv = require("opencv4nodejs");
-const path = require("path");
+// const path = require("path");
 const getActiveSection = require("./lib/getActiveSection");
 
 var app = require("express")();
@@ -8,65 +8,36 @@ var server = http.listen(8080, function() {
     console.log("listening on *:8080");
 });
 var io = require("socket.io").listen(server);
+var db = require("./db");
 
 // endpoints
+let lastRetrievedImage;
 app.get("/image", function(req, res) {
-    let mat = wCap.read();
-    let image = cv.imencode(".jpg", mat);
-    // let base64Image = Buffer.from(cv.imencode(".png", mat)).toString();
-    let base64Image = new Buffer(image).toString("base64");
-    res.status(200).send(base64Image);
+    if (lastRetrievedImage) {
+        res.status(200).send(lastRetrievedImage);
+    } else {
+        const mat = wCap.read();
+        const image = cv.imencode(".jpg", mat);
+        // let base64Image = Buffer.from(cv.imencode(".png", mat)).toString();
+        const base64Image = new Buffer(image).toString("base64");
+        res.status(200).send(base64Image);
+    }
 });
-
-// db stuff
-const low = require("lowdb");
-const FileSync = require("lowdb/adapters/FileSync");
-
-const adapter = new FileSync("db.json");
-const db = low(adapter);
-global.db = db;
-
-// Set some defaults (required if your JSON file is empty)
-db.defaults({ sections: {}, users: {}, playcounts: 0 }).write();
-
-// Add a post
-// db
-//     .get("sections")
-// .push({ id: 1, title: "lowdb is awesome" })
-// .write();
-
-// Set a user using Lodash shorthand syntax
-// db.set("user.name", "typicode").write();
-
-// Increment count
-// db.update("count", n => n + 1).write();
 
 io.on("connection", function(socket) {
     console.log("a user connected");
     socket.on("saveSection", data => {
         // webpage wants to save section data
-        db
-            .get("sections")
-            .set(data.index, { zones: data.zones })
-            .write();
-        // db
-        //     .get("sections")
-        //     .nth(data.index)
-        //     .assign(data)
-        //     .write();
+        db.writeSection(data.index, data.zones);
     });
 
-    
     socket.on("loadSection", index => {
         console.log("loadSection");
-        const result = db
-            .get("sections")
-            .get(index)
-            .value();
-
-        socket.emit("loadedSection", Object.assign({index}, result));
+        const result = db.getSection(index);
+        socket.emit("loadedSection", Object.assign({ index }, result));
     });
 });
+
 // motion stuff
 // open capture from webcam
 const devicePort = 0;
@@ -79,24 +50,33 @@ wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 240);
 // let image1 = cv.imencode(".ppm", frame1);
 // cv.imwrite("./image1.png", frame1);
 
-const sections = [
-    [{ x: 0, y: 0, width: 160, height: 120 }],
-    [{ x: 161, y: 121, width: 159, height: 119 }]
-];
+// const sections = [
+//     [{ x: 0, y: 0, width: 160, height: 120 }],
+//     [{ x: 161, y: 121, width: 159, height: 119 }]
+// ];
 
-let mog2 = new cv.BackgroundSubtractorMOG2();
+const mog2 = new cv.BackgroundSubtractorMOG2();
 let mask;
 
 const fetchActiveSection = () => {
     wCap.readAsync().then(mat => {
-        mask = mog2.apply(mat);
+        const cameraImage = cv.imencode(".jpg", mat);
+        const base64CameraImage = new Buffer(cameraImage).toString("base64");
+        lastRetrievedImage = base64CameraImage;
 
-        let activeSection = getActiveSection(sections, mask);
-        console.log(activeSection);
+        mask = mog2.apply(mat);
+        const maskImage = cv.imencode(".jpg", mask);
+        const base64MaskImage = new Buffer(maskImage).toString("base64");
+
+        const activeSectionIndex = getActiveSection(db.getSections(), mask);
+        const zones = db.getSection(activeSectionIndex);
+        console.log(activeSectionIndex);
 
         // repeat
-        io.emit("activeSection", activeSection);
-        setTimeout(fetchActiveSection, 10000);
+        io.emit("activeMask", base64MaskImage);
+        io.emit("activeImage", base64CameraImage);
+        io.emit("activeSection", Object.assign({ index: activeSectionIndex }, zones));
+        setTimeout(fetchActiveSection, 3000);
     });
 };
 fetchActiveSection();

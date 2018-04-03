@@ -17,17 +17,17 @@ class App extends Component {
 
         this.state = {};
 
-        this.loadedActiveSection = this.loadedActiveSection.bind(this);
+        // this.loadedActiveSection = this.loadedActiveSection.bind(this);
     }
 
     componentWillMount() {
         this.socket = openSocket("http://localhost:8080");
-        this.socket.on("activeSection", this.loadedActiveSection);
+        // this.socket.on("activeSection", this.loadedActiveSection);
     }
 
-    loadedActiveSection(activeSection) {
-        this.setState({ activeSection });
-    }
+    // loadedActiveSection(activeSection) {
+    //     this.setState({ activeSection });
+    // }
 
     setView(view) {
         this.setState({
@@ -60,7 +60,7 @@ class App extends Component {
                 </p>
                 <div>
                     {this.getView()}
-                    {this.state.activeSection}
+                    {/* {this.state.activeSection.index} */}
                 </div>
             </div>
         );

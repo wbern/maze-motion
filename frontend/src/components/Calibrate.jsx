@@ -1,5 +1,4 @@
 import React, { Component } from "react";
-import openSocket from "socket.io-client";
 
 import "./Calibrate.css";
 
@@ -11,12 +10,6 @@ class Calibrate extends Component {
         this.state = {
             sectionIndexInputValue: 1
         };
-
-        fetch("/image")
-            .then(data => data.text())
-            .then(base64Image =>
-                this.setState({ base64Image: "data:image/jpeg;base64," + base64Image })
-            );
 
         this.blockHover = this.blockHover.bind(this);
         this.onMouseDown = this.onMouseDown.bind(this);
@@ -30,6 +23,21 @@ class Calibrate extends Component {
 
     componentDidMount() {
         this.props.socket.on("loadedSection", this.loadedSection);
+        this.props.socket.on("activeImage", this.setImage.bind(this));
+        this.props.socket.on("activeSection", activeSection => {
+            this.setState({
+                activeSection
+            });
+            this.parseLoadedSection(activeSection.zones);
+        });
+
+        fetch("/image")
+            .then(data => data.text())
+            .then(base64Image => this.setImage(base64Image));
+    }
+
+    setImage(base64Image) {
+        this.setState({ base64Image: "data:image/jpeg;base64," + base64Image });
     }
 
     loadedSection(loadedSectionInfo) {
@@ -40,6 +48,16 @@ class Calibrate extends Component {
         this.setState({
             sectionIndexInputValue: e.target.value
         });
+    }
+
+    // used during drawing
+    stashGrid() {
+        this.stashedGrid = JSON.parse(JSON.stringify(this.grid));
+    }
+
+    // used during drawing
+    popGrid() {
+        this.grid = JSON.parse(JSON.stringify(this.stashedGrid));
     }
 
     resetGrid(stateChange = true) {
@@ -58,18 +76,6 @@ class Calibrate extends Component {
         }
     }
 
-    // componentWillReceiveProps(nextProps) {
-    //     if (nextProps.loadedSectionInfo) {
-    //         if (
-    //             !this.props.loadedSectionInfo ||
-    //             JSON.stringify(this.props.loadedSectionInfo) !==
-    //                 JSON.stringify(nextProps.loadedSectionInfo)
-    //         ) {
-    //             this.parseLoadedSection(nextProps.loadedSectionInfo.zones);
-    //         }
-    //     }
-    // }
-
     parseLoadedSection(zones) {
         // revert to the grid, if it exists
         if (zones) {
@@ -80,8 +86,6 @@ class Calibrate extends Component {
             this.setState({
                 lastDrawn: null
             });
-        } else {
-            this.resetGrid();
         }
     }
 
@@ -149,7 +153,8 @@ class Calibrate extends Component {
                 this.drawMode = this.grid[rowIndex][colIndex] === 0 ? 1 : 0;
             }
             // draw the tiles
-            this.resetGrid(false);
+            this.popGrid();
+            // this.resetGrid(false);
             this.performOnBlocks(rowIndex, colIndex, (r, c) => {
                 this.grid[r][c] = this.drawMode;
             });
@@ -161,11 +166,13 @@ class Calibrate extends Component {
 
     onMouseDown(e) {
         this.mouseDown = true;
+        this.stashGrid();
         this.initialBlock = e.target.id.split("-");
         this.blockHover(e);
     }
 
     onMouseUp() {
+        this.stashGrid();
         this.mouseDown = false;
         this.drawMode = undefined;
     }
@@ -173,7 +180,10 @@ class Calibrate extends Component {
     render() {
         return (
             <div className="calibrate">
-                <h2>Here we calibrate stuff</h2>
+                <h2>
+                    Here we calibrate stuff (active index:{" "}
+                    {this.state.activeSection && this.state.activeSection.index})
+                </h2>
                 <div className="calibrateControls">
                     <form>
                         <input
