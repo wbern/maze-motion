@@ -2,6 +2,7 @@ const cv = require("opencv4nodejs");
 // const path = require("path");
 const getActiveSection = require("./lib/getActiveSection");
 const simplifyZones = require("./lib/simplifyZones");
+const adjustZonesResolution = require("./lib/adjustZonesResolution");
 
 var app = require("express")();
 var http = require("http").Server(app);
@@ -11,8 +12,13 @@ var server = http.listen(8080, function() {
 var io = require("socket.io").listen(server);
 var db = require("./db");
 
+const frontendResolution = { height: 480, width: 640 };
+const backendResolution = { height: 240, width: 320 };
+
 // endpoints
 let lastRetrievedImage;
+let lastActiveSection;
+
 app.get("/image", function(req, res) {
     if (lastRetrievedImage) {
         res.status(200).send(lastRetrievedImage);
@@ -29,14 +35,35 @@ io.on("connection", function(socket) {
     console.log("a user connected");
     socket.on("saveSection", data => {
         // webpage wants to save section data
-        data.zones = simplifyZones(data.zones);
+        data.zones = adjustZonesResolution(data.zones, data.resolution, backendResolution);
+        data.zones = simplifyZones(
+            data.zones,
+            data.resolution,
+            backendResolution,
+            frontendResolution
+        );
         db.writeSection(data.index, data.zones);
     });
 
     socket.on("loadSection", index => {
         console.log("loadSection");
-        const result = db.getSection(index);
-        socket.emit("loadedSection", Object.assign({ index }, result));
+        const section = db.getSection(index);
+        if (section) {
+            const zones = adjustZonesResolution(
+                section.zones,
+                backendResolution,
+                frontendResolution
+            );
+            socket.emit("loadedSection", { index, zones });
+        }
+    });
+
+    socket.on("requestImage", () => {
+        socket.emit("activeImage", lastRetrievedImage);
+    });
+
+    socket.on("requestActiveSection", () => {
+        socket.emit("activeSection", lastActiveSection);
     });
 });
 
@@ -44,8 +71,8 @@ io.on("connection", function(socket) {
 // open capture from webcam
 const devicePort = 0;
 const wCap = new cv.VideoCapture(devicePort);
-wCap.set(cv.CAP_PROP_FRAME_WIDTH, 320);
-wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 240);
+wCap.set(cv.CAP_PROP_FRAME_WIDTH, backendResolution.width);
+wCap.set(cv.CAP_PROP_FRAME_HEIGHT, backendResolution.height);
 
 // let frame1 = wCap.read();
 // let frame1 = cv.imread("./image1.png");
@@ -67,21 +94,23 @@ const fetchActiveSection = () => {
         lastRetrievedImage = base64CameraImage;
 
         mask = mog2.apply(mat);
-        const maskImage = cv.imencode(".jpg", mask);
-        const base64MaskImage = new Buffer(maskImage).toString("base64");
+        // const maskImage = cv.imencode(".jpg", mask);
+        // const base64MaskImage = new Buffer(maskImage).toString("base64");
 
         getActiveSection(db.getSections(), mask).then(activeSectionIndex => {
             // only emit something if there's a change
             if (activeSectionIndex !== null) {
-                const zones = db.getSection(activeSectionIndex);
+                const section = db.getSection(activeSectionIndex);
+                const zones = adjustZonesResolution(
+                    section.zones,
+                    backendResolution,
+                    frontendResolution
+                );
                 console.log(activeSectionIndex);
 
-                // repeat
-                io.emit("activeMask", base64MaskImage);
-                io.emit("activeImage", base64CameraImage);
-                io.emit("activeSection", Object.assign({ index: activeSectionIndex }, zones));
+                lastActiveSection = { index: activeSectionIndex, zones };
             }
-            setTimeout(fetchActiveSection, 3000);
+            setTimeout(fetchActiveSection, 5);
         });
     });
 };

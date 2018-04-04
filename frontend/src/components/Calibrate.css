@@ -24,6 +24,11 @@
     background: rgba(0, 255, 255, 0.5);
 }
 
+.block-active {
+    border: 1px dotted;
+    box-sizing: border-box;
+}
+
 .imageContainer {
     user-select: none;
     display: flex;

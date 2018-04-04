@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import { setGridByZones, getEmptyGrid, cloneGrid, getZonesByGrid } from "./Calibrate.functions";
 
 import "./Calibrate.css";
 
@@ -13,36 +14,55 @@ class Calibrate extends Component {
         this.blockHover = this.blockHover.bind(this);
         this.onMouseDown = this.onMouseDown.bind(this);
         this.onMouseUp = this.onMouseUp.bind(this);
-        this.loadGrid = this.loadGrid.bind(this);
-        this.saveGrid = this.saveGrid.bind(this);
+        this.onGridLoadClick = this.onGridLoadClick.bind(this);
+        this.onGridSaveClick = this.onGridSaveClick.bind(this);
         this.sectionIndexChange = this.sectionIndexChange.bind(this);
-
-        this.loadedSection = this.loadedSection.bind(this);
     }
 
     componentDidMount() {
-        this.resetGrid();
-        
-        this.props.socket.on("loadedSection", this.loadedSection);
-        this.props.socket.on("activeImage", this.setImage.bind(this));
-        this.props.socket.on("activeSection", activeSection => {
-            this.setState({
-                activeSection
-            });
-            this.parseLoadedSection(activeSection.zones);
-        });
+        this.grid = getEmptyGrid();
+        this.activeGrid = getEmptyGrid();
 
-        fetch("/image")
-            .then(data => data.text())
-            .then(base64Image => this.setImage(base64Image));
+        this.props.socket.on(
+            "loadedSection",
+            function(loadedSectionInfo) {
+                this.grid = getEmptyGrid();
+                this.setGrid(this.grid, loadedSectionInfo.zones);
+            }.bind(this)
+        );
+        this.props.socket.on("activeImage", this.setImage.bind(this));
+        this.props.socket.on(
+            "activeSection",
+            function(activeSection) {
+                this.setState({
+                    activeSection
+                });
+                this.activeGrid = getEmptyGrid();
+                this.setGrid(this.activeGrid, activeSection.zones);
+            }.bind(this)
+        );
+
+        setInterval(() => {
+            if (this.isImageElementReady()) {
+                this.props.socket.emit("requestImage");
+                this.props.socket.emit("requestActiveSection");
+            }
+        }, 500);
+
+        // fetch("/image")
+        //     .then(data => data.text())
+        //     .then(base64Image => this.setImage(base64Image));
+    }
+
+    isImageElementReady() {
+        return this.imageElement && this.imageLoaded !== false;
     }
 
     setImage(base64Image) {
-        this.setState({ base64Image: "data:image/jpeg;base64," + base64Image });
-    }
-
-    loadedSection(loadedSectionInfo) {
-        this.parseLoadedSection(loadedSectionInfo.zones);
+        if (this.isImageElementReady()) {
+            this.imageLoaded = false;
+            this.imageElement.src = "data:image/jpeg;base64," + base64Image;
+        }
     }
 
     sectionIndexChange(e) {
@@ -53,40 +73,18 @@ class Calibrate extends Component {
 
     // used during drawing
     stashGrid() {
-        this.stashedGrid = JSON.parse(JSON.stringify(this.grid));
+        this.stashedGrid = cloneGrid(this.grid);
     }
 
     // used during drawing
     popGrid() {
-        this.grid = JSON.parse(JSON.stringify(this.stashedGrid));
+        this.grid = cloneGrid(this.stashedGrid);
     }
 
-    resetGrid(stateChange = true) {
-        // always assume blocks should be 10px for now
-        const initialGrid = new Array(64);
-        for (let i = 0; i < initialGrid.length; i++) {
-            initialGrid[i] = new Array(48).fill(0);
-        }
-
-        this.grid = initialGrid;
-
-        if (stateChange) {
-            this.setState({
-                lastDrawn: null
-            });
-        }
-    }
-
-    parseLoadedSection(zones) {
+    setGrid(gridReference, zones) {
         // revert to the grid, if it exists
         if (zones) {
-            zones.forEach(zone => {
-                for(var yOffset = (zone.height / 10) - 1; yOffset >= 0; yOffset--) {
-                    for(var xOffset = (zone.width / 10) - 1; xOffset >= 0; xOffset--) {
-                        this.grid[(zone.x / 10) + xOffset][(zone.y / 10) + yOffset] = 1;
-                    }
-                }
-            });
+            setGridByZones(zones, gridReference);
 
             this.setState({
                 lastDrawn: null
@@ -94,38 +92,21 @@ class Calibrate extends Component {
         }
     }
 
-    loadGrid(e) {
+    onGridLoadClick(e) {
         e.preventDefault();
         this.props.socket.emit("loadSection", this.state.sectionIndexInputValue);
         // e.target.children.sectionIndex.value
-        this.resetGrid();
+        this.grid = getEmptyGrid();
+        this.forceUpdate();
     }
 
-    saveSection(zones, index) {
-        this.props.socket.emit("saveSection", { zones, index });
-    }
-
-    generateSectionFromGrid(grid) {
-        const section = [];
-
-        grid.forEach((rows, colIndex) => {
-            rows.forEach((col, rowIndex) => {
-                if (col === 1) {
-                    // enabled
-                    section.push({ y: rowIndex * 10, x: colIndex * 10, width: 10, height: 10 });
-                }
-            });
-        });
-
-        return section;
-    }
-
-    saveGrid(e) {
+    onGridSaveClick(e) {
         e.preventDefault();
-        this.saveSection(
-            this.generateSectionFromGrid(this.grid),
-            this.state.sectionIndexInputValue
-        );
+        this.props.socket.emit("saveSection", {
+            zones: getZonesByGrid(this.grid),
+            resolution: { height: 480, width: 640 },
+            index: this.state.sectionIndexInputValue
+        });
     }
 
     performOnBlocks(rowIndexString, colIndexString, callback) {
@@ -159,7 +140,6 @@ class Calibrate extends Component {
             }
             // draw the tiles
             this.popGrid();
-            // this.resetGrid(false);
             this.performOnBlocks(rowIndex, colIndex, (r, c) => {
                 this.grid[r][c] = this.drawMode;
             });
@@ -170,16 +150,26 @@ class Calibrate extends Component {
     }
 
     onMouseDown(e) {
-        this.mouseDown = true;
-        this.stashGrid();
-        this.initialBlock = e.target.id.split("-");
-        this.blockHover(e);
+        if (e.button === 0) {
+            this.mouseDown = true;
+            this.stashGrid();
+            this.initialBlock = e.target.id.split("-");
+            this.blockHover(e);
+        }
     }
 
-    onMouseUp() {
-        this.stashGrid();
-        this.mouseDown = false;
-        this.drawMode = undefined;
+    onMouseUp(e) {
+        if (e.button === 0) {
+            this.stashGrid();
+            this.mouseDown = false;
+            this.drawMode = undefined;
+        }
+    }
+
+    saveImageRef(submit) {
+        if (submit) {
+            this.imageElement = submit;
+        }
     }
 
     render() {
@@ -196,32 +186,45 @@ class Calibrate extends Component {
                             name="sectionIndex"
                             onChange={this.sectionIndexChange}
                             max="99"
-                            min="1"
+                            min="0"
                             value={this.state.sectionIndexInputValue}
                         />
                     </form>
-                    <input type="button" onClick={this.loadGrid} value="Load" />
-                    <input type="button" onClick={this.saveGrid} value="Save" />
+                    <input type="button" onClick={this.onGridLoadClick} value="Load" />
+                    <input type="button" onClick={this.onGridSaveClick} value="Save" />
                 </div>
                 <div className="imageContainer">
-                    <img className="image" src={this.state.base64Image} alt="Loading" />
+                    <img
+                        ref={this.saveImageRef.bind(this)}
+                        onLoad={() => (this.imageLoaded = true)}
+                        className="image"
+                        src={this.state.base64Image}
+                        alt="Loading"
+                    />
                     <div className="grid">
-                        {this.grid && this.grid.map((rows, rowIndex) => (
-                            <div key={rowIndex}>
-                                {rows.map((col, colIndex) => (
-                                    <div
-                                        key={colIndex}
-                                        onMouseDown={this.onMouseDown}
-                                        onMouseUp={this.onMouseUp}
-                                        onMouseEnter={this.blockHover}
-                                        id={rowIndex + "-" + colIndex}
-                                        className={"block block-" + this.grid[rowIndex][colIndex]}
-                                    >
-                                        {/* {this.grid[rowIndex][colIndex]} */}
-                                    </div>
-                                ))}
-                            </div>
-                        ))}
+                        {this.grid &&
+                            this.grid.map((rows, rowIndex) => (
+                                <div key={rowIndex}>
+                                    {rows.map((col, colIndex) => (
+                                        <div
+                                            key={colIndex}
+                                            onMouseDown={this.onMouseDown}
+                                            onMouseUp={this.onMouseUp}
+                                            onMouseEnter={this.blockHover}
+                                            id={rowIndex + "-" + colIndex}
+                                            className={
+                                                "block block-" +
+                                                this.grid[rowIndex][colIndex] +
+                                                (this.activeGrid[rowIndex][colIndex]
+                                                    ? " block-active"
+                                                    : "")
+                                            }
+                                        >
+                                            {/* {this.grid[rowIndex][colIndex]} */}
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
                     </div>
                 </div>
             </div>
