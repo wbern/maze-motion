@@ -1,4 +1,4 @@
-module.exports = (sections, diffMat) => {
+module.exports = (sections, diffMat, threshold = 30) => {
     return new Promise(resolve => {
         const isWithinSection = (zone, coords) =>
             coords.x >= zone.x &&
@@ -17,6 +17,13 @@ module.exports = (sections, diffMat) => {
                     }
                 });
             });
+        });
+
+        // nullify according to threshold
+        sectionMatches.forEach((match, i, arr) => {
+            if (match < threshold) {
+                arr[i] = undefined;
+            }
         });
 
         resolve(sectionMatches);

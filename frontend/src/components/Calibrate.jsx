@@ -8,6 +8,7 @@ class Calibrate extends Component {
         super(props);
 
         this.state = {
+            lastActiveSections: null,
             sectionIndexInputValue: 1
         };
 
@@ -16,6 +17,7 @@ class Calibrate extends Component {
         this.onMouseUp = this.onMouseUp.bind(this);
         this.onGridLoadClick = this.onGridLoadClick.bind(this);
         this.onGridSaveClick = this.onGridSaveClick.bind(this);
+        this.onGridClearClick = this.onGridClearClick.bind(this);
         this.sectionIndexChange = this.sectionIndexChange.bind(this);
     }
 
@@ -32,22 +34,26 @@ class Calibrate extends Component {
         );
         this.props.socket.on("activeImage", this.setImage.bind(this));
         this.props.socket.on(
-            "activeSection",
-            function(activeSection) {
-                this.setState({
-                    activeSection
-                });
-                this.activeGrid = getEmptyGrid();
-                this.setGrid(this.activeGrid, activeSection.zones);
+            "activeSections",
+            function(activeSections) {
+                if(activeSections) {
+                    this.setState({
+                        activeSections
+                    });
+                    this.activeGrid = getEmptyGrid();
+                    activeSections.forEach(activeSection => {
+                        this.setGrid(this.activeGrid, activeSection.zones, activeSection.index);
+                    });
+                }
             }.bind(this)
         );
 
         setInterval(() => {
-            if (this.isImageElementReady()) {
+            if (this.props.socket.connected && this.isImageElementReady()) {
                 this.props.socket.emit("requestImage");
-                this.props.socket.emit("requestActiveSection");
+                this.props.socket.emit("requestActiveSections");
             }
-        }, 500);
+        }, 550);
 
         // fetch("/image")
         //     .then(data => data.text())
@@ -81,10 +87,10 @@ class Calibrate extends Component {
         this.grid = cloneGrid(this.stashedGrid);
     }
 
-    setGrid(gridReference, zones) {
+    setGrid(gridReference, zones, blockValue) {
         // revert to the grid, if it exists
         if (zones) {
-            setGridByZones(zones, gridReference);
+            setGridByZones(zones, gridReference, blockValue);
 
             this.setState({
                 lastDrawn: null
@@ -106,6 +112,13 @@ class Calibrate extends Component {
             zones: getZonesByGrid(this.grid),
             resolution: { height: 480, width: 640 },
             index: this.state.sectionIndexInputValue
+        });
+    }
+
+    onGridClearClick() {
+        this.grid = getEmptyGrid();
+        this.setState({
+            lastDrawn: null
         });
     }
 
@@ -177,12 +190,13 @@ class Calibrate extends Component {
             <div className="calibrate">
                 <h2>
                     Here we calibrate stuff (active index:{" "}
-                    {this.state.activeSection && this.state.activeSection.index})
+                    {this.state.activeSections && JSON.stringify(this.state.activeSections.map(s => s.index))})
                 </h2>
                 <div className="calibrateControls">
                     <form>
                         <input
                             type="number"
+                            className="formControl"
                             name="sectionIndex"
                             onChange={this.sectionIndexChange}
                             max="99"
@@ -190,8 +204,9 @@ class Calibrate extends Component {
                             value={this.state.sectionIndexInputValue}
                         />
                     </form>
-                    <input type="button" onClick={this.onGridLoadClick} value="Load" />
-                    <input type="button" onClick={this.onGridSaveClick} value="Save" />
+                    <input className="formControl" type="button" onClick={this.onGridLoadClick} value="Load" />
+                    <input className="formControl" type="button" onClick={this.onGridSaveClick} value="Save" />
+                    <input className="formControl" type="button" onClick={this.onGridClearClick} value="Clear" />
                 </div>
                 <div className="imageContainer">
                     <img
@@ -205,24 +220,27 @@ class Calibrate extends Component {
                         {this.grid &&
                             this.grid.map((rows, rowIndex) => (
                                 <div key={rowIndex}>
-                                    {rows.map((col, colIndex) => (
-                                        <div
-                                            key={colIndex}
-                                            onMouseDown={this.onMouseDown}
-                                            onMouseUp={this.onMouseUp}
-                                            onMouseEnter={this.blockHover}
-                                            id={rowIndex + "-" + colIndex}
-                                            className={
-                                                "block block-" +
-                                                this.grid[rowIndex][colIndex] +
-                                                (this.activeGrid[rowIndex][colIndex]
-                                                    ? " block-active"
-                                                    : "")
-                                            }
-                                        >
-                                            {/* {this.grid[rowIndex][colIndex]} */}
-                                        </div>
-                                    ))}
+                                    {rows.map((col, colIndex) => {
+                                        const activeValue = this.activeGrid[rowIndex][colIndex];
+                                        const blockValue = this.grid[rowIndex][colIndex];
+
+                                        return (
+                                            <div
+                                                key={colIndex}
+                                                onMouseDown={this.onMouseDown}
+                                                onMouseUp={this.onMouseUp}
+                                                onMouseEnter={this.blockHover}
+                                                id={rowIndex + "-" + colIndex}
+                                                className={
+                                                    "block block-" +
+                                                    blockValue +
+                                                    (activeValue ? " block-active" : "")
+                                                }
+                                            >
+                                                {activeValue !== 0 ? this.activeGrid[rowIndex][colIndex] : null}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             ))}
                     </div>

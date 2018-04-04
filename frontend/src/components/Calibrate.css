@@ -4,13 +4,20 @@
     align-items: center;
 }
 
+.formControl {
+    margin: 2px 4px;
+}
+
 .calibrateControls {
     flex: 1;
     display: flex;
 }
 
 .block {
-    font-size: 1px;
+    color: gray;
+    font-size: 8px;
+    vertical-align: middle;
+    text-align: center;
     height: 10px;
     width: 10px;
     /* background: rgba(255, 255, 0, 0.5); */
@@ -25,7 +32,7 @@
 }
 
 .block-active {
-    border: 1px dotted;
+    border: 0.5px solid rgba(0,0,0,0.1);
     box-sizing: border-box;
 }
 

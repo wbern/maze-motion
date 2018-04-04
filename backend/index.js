@@ -1,6 +1,7 @@
 const cv = require("opencv4nodejs");
 // const path = require("path");
 const getActiveSection = require("./lib/getActiveSection");
+const getActiveSections = require("./lib/getActiveSections");
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
 
@@ -17,7 +18,7 @@ const backendResolution = { height: 240, width: 320 };
 
 // endpoints
 let lastRetrievedImage;
-let lastActiveSection;
+let lastActiveSections;
 
 app.get("/image", function(req, res) {
     if (lastRetrievedImage) {
@@ -62,14 +63,14 @@ io.on("connection", function(socket) {
         socket.emit("activeImage", lastRetrievedImage);
     });
 
-    socket.on("requestActiveSection", () => {
-        socket.emit("activeSection", lastActiveSection);
+    socket.on("requestActiveSections", () => {
+        socket.emit("activeSections", lastActiveSections);
     });
 });
 
 // motion stuff
 // open capture from webcam
-const devicePort = 0;
+const devicePort = 1;
 const wCap = new cv.VideoCapture(devicePort);
 wCap.set(cv.CAP_PROP_FRAME_WIDTH, backendResolution.width);
 wCap.set(cv.CAP_PROP_FRAME_HEIGHT, backendResolution.height);
@@ -84,32 +85,76 @@ wCap.set(cv.CAP_PROP_FRAME_HEIGHT, backendResolution.height);
 //     [{ x: 161, y: 121, width: 159, height: 119 }]
 // ];
 
-const mog2 = new cv.BackgroundSubtractorMOG2();
-let mask;
+// const defaults = {
+//     detectShadows: true,
+//     history: 500,
+//     varThreshold: 16
+// };
+const modified = {
+    detectShadows: false,
+    history: 50,
+    varThreshold: 50
+};
+const mog2 = new cv.BackgroundSubtractorMOG2(
+    modified.history,
+    modified.varThreshold,
+    modified.detectShadows
+);
+let motionMask;
 
 const fetchActiveSection = () => {
     wCap.readAsync().then(mat => {
-        const cameraImage = cv.imencode(".jpg", mat);
+        // const cameraImage = cv.imencode(".jpg", mat);
+        // const base64CameraImage = new Buffer(cameraImage).toString("base64");
+        // lastRetrievedImage = base64CameraImage;
+
+        const hsvFrame = mat.cvtColor(cv.COLOR_BGR2HSV_FULL);
+
+        let maskedMat;
+        const hsvMasks = db.getBallMasks();
+        hsvMasks.forEach(hsvMask => {
+            const min = new cv.Vec3(hsvMask.min[0], hsvMask.min[1], hsvMask.min[2]);
+            const max = new cv.Vec3(hsvMask.max[0], hsvMask.max[1], hsvMask.max[2]);
+            const rangeMask = hsvFrame.inRange(min, max);
+            maskedMat = mat.copyTo(maskedMat || new cv.Mat(), rangeMask);
+        });
+
+        const cameraImage = cv.imencode(".jpg", maskedMat);
         const base64CameraImage = new Buffer(cameraImage).toString("base64");
         lastRetrievedImage = base64CameraImage;
 
-        mask = mog2.apply(mat);
-        // const maskImage = cv.imencode(".jpg", mask);
-        // const base64MaskImage = new Buffer(maskImage).toString("base64");
+        // cv.imshowWait("image", maskedImage);
+        motionMask = mog2.apply(maskedMat);
 
-        getActiveSection(db.getSections(), mask).then(activeSectionIndex => {
+        getActiveSections(db.getSections(), motionMask).then(activeSections => {
             // only emit something if there's a change
-            if (activeSectionIndex !== null) {
-                const section = db.getSection(activeSectionIndex);
-                const zones = adjustZonesResolution(
-                    section.zones,
-                    backendResolution,
-                    frontendResolution
-                );
-                console.log(activeSectionIndex);
+            lastActiveSections = activeSections
+                .map((matchCount, activeSectionIndex) => {
+                    if (matchCount !== undefined) {
+                        const section = db.getSection(activeSectionIndex);
+                        const zones = adjustZonesResolution(
+                            section.zones,
+                            backendResolution,
+                            frontendResolution
+                        );
 
-                lastActiveSection = { index: activeSectionIndex, zones };
-            }
+                        return { index: activeSectionIndex, zones };
+                    }
+                    return null;
+                })
+                .filter(s => s !== null);
+            console.log(JSON.stringify(lastActiveSections.map(s => s.index)));
+            // if (activeSections.some(v => v !== undefined)) {
+            //     const section = db.getSection(activeSectionIndex);
+            //     const zones = adjustZonesResolution(
+            //         section.zones,
+            //         backendResolution,
+            //         frontendResolution
+            //     );
+            //     console.log(activeSectionIndex);
+
+            //     lastActiveSection = { index: activeSectionIndex, zones };
+            // }
             setTimeout(fetchActiveSection, 5);
         });
     });

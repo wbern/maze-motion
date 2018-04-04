@@ -7,7 +7,18 @@ class db {
         this.lowdb = low(adapter);
         global.db = this.lowdb;
 
-        this.lowdb.defaults({ sections: {}, users: {}, playcounts: 0 }).write();
+        this.lowdb
+            .defaults({
+                sections: {},
+                users: {},
+                playcounts: 0,
+                ballHSVMasks: [
+                    { min: [30, 102, 42], max: [100, 255, 255] }
+                    // want the hand? include this
+                    // { min: [5, 102, 42], max: [30, 255, 255] }
+                ]
+            })
+            .write();
     }
 
     writeSection(index, zones) {
@@ -22,6 +33,10 @@ class db {
             .get("sections")
             .get(index)
             .value();
+    }
+
+    getBallMasks() {
+        return this.lowdb.get("ballHSVMasks").value();
     }
 
     getSections() {

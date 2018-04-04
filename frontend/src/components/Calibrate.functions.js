@@ -1,9 +1,9 @@
-export function setGridByZones(zones, grid) {
+export function setGridByZones(zones, grid, blockValue = 1) {
     if (zones) {
         zones.forEach(zone => {
             for (var yOffset = zone.height / 10 - 1; yOffset >= 0; yOffset--) {
                 for (var xOffset = zone.width / 10 - 1; xOffset >= 0; xOffset--) {
-                    grid[zone.x / 10 + xOffset][zone.y / 10 + yOffset] = 1;
+                    grid[zone.x / 10 + xOffset][zone.y / 10 + yOffset] = blockValue;
                 }
             }
         });
