@@ -36,7 +36,7 @@ class Calibrate extends Component {
         this.props.socket.on(
             "activeSections",
             function(activeSections) {
-                if(activeSections) {
+                if (activeSections) {
                     this.setState({
                         activeSections
                     });
@@ -50,7 +50,9 @@ class Calibrate extends Component {
 
         setInterval(() => {
             if (this.props.socket.connected && this.isImageElementReady()) {
-                this.props.socket.emit("requestImage");
+                this.props.socket.emit("requestImage", {
+                    showMaskedImage: this.state.showMaskedImage
+                });
                 this.props.socket.emit("requestActiveSections");
             }
         }, 550);
@@ -190,7 +192,8 @@ class Calibrate extends Component {
             <div className="calibrate">
                 <h2>
                     Here we calibrate stuff (active index:{" "}
-                    {this.state.activeSections && JSON.stringify(this.state.activeSections.map(s => s.index))})
+                    {this.state.activeSections &&
+                        JSON.stringify(this.state.activeSections.map(s => s.index))})
                 </h2>
                 <div className="calibrateControls">
                     <form>
@@ -204,9 +207,32 @@ class Calibrate extends Component {
                             value={this.state.sectionIndexInputValue}
                         />
                     </form>
-                    <input className="formControl" type="button" onClick={this.onGridLoadClick} value="Load" />
-                    <input className="formControl" type="button" onClick={this.onGridSaveClick} value="Save" />
-                    <input className="formControl" type="button" onClick={this.onGridClearClick} value="Clear" />
+                    <input
+                        className="formControl"
+                        type="button"
+                        onClick={this.onGridLoadClick}
+                        value="Load"
+                    />
+                    <input
+                        className="formControl"
+                        type="button"
+                        onClick={this.onGridSaveClick}
+                        value="Save"
+                    />
+                    <input
+                        className="formControl"
+                        type="button"
+                        onClick={this.onGridClearClick}
+                        value="Clear"
+                    />
+                    <input
+                        type="checkbox"
+                        value={this.state.showMaskedImage}
+                        onClick={e => {
+                            this.setState({ showMaskedImage: e.target.checked });
+                        }}
+                    />
+                    <label>Show image mask</label>
                 </div>
                 <div className="imageContainer">
                     <img
@@ -237,7 +263,9 @@ class Calibrate extends Component {
                                                     (activeValue ? " block-active" : "")
                                                 }
                                             >
-                                                {activeValue !== 0 ? this.activeGrid[rowIndex][colIndex] : null}
+                                                {activeValue !== 0
+                                                    ? this.activeGrid[rowIndex][colIndex]
+                                                    : null}
                                             </div>
                                         );
                                     })}

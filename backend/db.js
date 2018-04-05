@@ -12,6 +12,12 @@ class db {
                 sections: {},
                 users: {},
                 playcounts: 0,
+                cornerHSVMasks: [
+                    {
+                        min: [16, 86, 125],
+                        max: [60, 255, 255]
+                    }
+                ],
                 ballHSVMasks: [
                     { min: [30, 102, 42], max: [100, 255, 255] }
                     // want the hand? include this
@@ -35,7 +41,11 @@ class db {
             .value();
     }
 
-    getBallMasks() {
+    getCornerHSVMasks() {
+        return this.lowdb.get("cornerHSVMasks").value();
+    }
+
+    getBallHSVMasks() {
         return this.lowdb.get("ballHSVMasks").value();
     }
 

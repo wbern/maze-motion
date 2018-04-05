@@ -1,6 +1,5 @@
 const cv = require("opencv4nodejs");
-// const path = require("path");
-const getActiveSection = require("./lib/getActiveSection");
+const getTransformationMatrixMat = require("./lib/getTransformationMatrixMat");
 const getActiveSections = require("./lib/getActiveSections");
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
@@ -13,16 +12,19 @@ var server = http.listen(8080, function() {
 var io = require("socket.io").listen(server);
 var db = require("./db");
 
+// globals
 const frontendResolution = { height: 480, width: 640 };
 const backendResolution = { height: 240, width: 320 };
-
-// endpoints
-let lastRetrievedImage;
+let lastRetrievedImageMat;
+let lastRetrievedBallMat;
 let lastActiveSections;
 
+// endpoints
 app.get("/image", function(req, res) {
-    if (lastRetrievedImage) {
-        res.status(200).send(lastRetrievedImage);
+    if (lastRetrievedImageMat) {
+        const image = cv.imencode(".jpg", lastRetrievedImageMat);
+        const base64 = new Buffer(image).toString("base64");
+        res.status(200).send(base64);
     } else {
         const mat = wCap.read();
         const image = cv.imencode(".jpg", mat);
@@ -32,6 +34,7 @@ app.get("/image", function(req, res) {
     }
 });
 
+// socket endpoints
 io.on("connection", function(socket) {
     console.log("a user connected");
     socket.on("saveSection", data => {
@@ -59,8 +62,18 @@ io.on("connection", function(socket) {
         }
     });
 
-    socket.on("requestImage", () => {
-        socket.emit("activeImage", lastRetrievedImage);
+    socket.on("requestImage", data => {
+        if (lastRetrievedBallMat) {
+            if (data.showMaskedImage) {
+                const image = cv.imencode(".jpg", lastRetrievedBallMat);
+                const base64 = new Buffer(image).toString("base64");
+                socket.emit("activeImageMask", base64);
+            } else {
+                const image = cv.imencode(".jpg", lastRetrievedImageMat);
+                const base64 = new Buffer(image).toString("base64");
+                socket.emit("activeImage", base64);
+            }
+        }
     });
 
     socket.on("requestActiveSections", () => {
@@ -68,22 +81,11 @@ io.on("connection", function(socket) {
     });
 });
 
-// motion stuff
 // open capture from webcam
 const devicePort = 1;
 const wCap = new cv.VideoCapture(devicePort);
 wCap.set(cv.CAP_PROP_FRAME_WIDTH, backendResolution.width);
 wCap.set(cv.CAP_PROP_FRAME_HEIGHT, backendResolution.height);
-
-// let frame1 = wCap.read();
-// let frame1 = cv.imread("./image1.png");
-// let image1 = cv.imencode(".ppm", frame1);
-// cv.imwrite("./image1.png", frame1);
-
-// const sections = [
-//     [{ x: 0, y: 0, width: 160, height: 120 }],
-//     [{ x: 161, y: 121, width: 159, height: 119 }]
-// ];
 
 // const defaults = {
 //     detectShadows: true,
@@ -100,63 +102,93 @@ const mog2 = new cv.BackgroundSubtractorMOG2(
     modified.varThreshold,
     modified.detectShadows
 );
-let motionMask;
+let ballMotionMat;
+let lastTransformationMatrixMat;
+let staleTransformationMatrixCount = 0;
+const staleTransformationMatrixLimit = 10;
+
+let capturesDoneWithinInterval = 0;
+
+setInterval(() => {
+    console.log(capturesDoneWithinInterval + " captures per 5 seconds");
+    capturesDoneWithinInterval = 0;
+}, 5000);
 
 const fetchActiveSection = () => {
-    wCap.readAsync().then(mat => {
-        // const cameraImage = cv.imencode(".jpg", mat);
-        // const base64CameraImage = new Buffer(cameraImage).toString("base64");
-        // lastRetrievedImage = base64CameraImage;
+    wCap.readAsync().then(imageMat => {
+        const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
+        let ballMat;
 
-        const hsvFrame = mat.cvtColor(cv.COLOR_BGR2HSV_FULL);
+        try {
+            try {
+                lastTransformationMatrixMat = getTransformationMatrixMat(
+                    imageMat,
+                    db.getCornerHSVMasks()
+                );
+                staleTransformationMatrixCount = 0;
+            } catch (e) {
+                staleTransformationMatrixCount++;
+                if (!lastTransformationMatrixMat) {
+                    throw Error(
+                        "Failed getting initial corner capture (count: " +
+                            staleTransformationMatrixCount +
+                            ")"
+                    );
+                } else if (staleTransformationMatrixCount > staleTransformationMatrixLimit) {
+                    throw Error(
+                        "Failed to get corners " +
+                            staleTransformationMatrixLimit +
+                            " times, discarding capture (count: " +
+                            staleTransformationMatrixCount +
+                            ")"
+                    );
+                }
+                console.warn(e);
+            }
 
-        let maskedMat;
-        const hsvMasks = db.getBallMasks();
-        hsvMasks.forEach(hsvMask => {
-            const min = new cv.Vec3(hsvMask.min[0], hsvMask.min[1], hsvMask.min[2]);
-            const max = new cv.Vec3(hsvMask.max[0], hsvMask.max[1], hsvMask.max[2]);
-            const rangeMask = hsvFrame.inRange(min, max);
-            maskedMat = mat.copyTo(maskedMat || new cv.Mat(), rangeMask);
-        });
+            imageMat = imageMat.warpPerspective(
+                lastTransformationMatrixMat,
+                new cv.Size(backendResolution.width, backendResolution.height)
+            );
 
-        const cameraImage = cv.imencode(".jpg", maskedMat);
-        const base64CameraImage = new Buffer(cameraImage).toString("base64");
-        lastRetrievedImage = base64CameraImage;
+            lastRetrievedImageMat = imageMat;
 
-        // cv.imshowWait("image", maskedImage);
-        motionMask = mog2.apply(maskedMat);
+            const hsvMasks = db.getBallHSVMasks();
+            hsvMasks.forEach(hsvMask => {
+                const min = new cv.Vec3(hsvMask.min[0], hsvMask.min[1], hsvMask.min[2]);
+                const max = new cv.Vec3(hsvMask.max[0], hsvMask.max[1], hsvMask.max[2]);
+                const rangeMask = hsvFrame.inRange(min, max);
+                ballMat = imageMat.copyTo(ballMat || new cv.Mat(), rangeMask);
+            });
 
-        getActiveSections(db.getSections(), motionMask).then(activeSections => {
-            // only emit something if there's a change
-            lastActiveSections = activeSections
-                .map((matchCount, activeSectionIndex) => {
-                    if (matchCount !== undefined) {
-                        const section = db.getSection(activeSectionIndex);
-                        const zones = adjustZonesResolution(
-                            section.zones,
-                            backendResolution,
-                            frontendResolution
-                        );
+            lastRetrievedBallMat = ballMat;
+            ballMotionMat = mog2.apply(ballMat);
 
-                        return { index: activeSectionIndex, zones };
-                    }
-                    return null;
-                })
-                .filter(s => s !== null);
-            console.log(JSON.stringify(lastActiveSections.map(s => s.index)));
-            // if (activeSections.some(v => v !== undefined)) {
-            //     const section = db.getSection(activeSectionIndex);
-            //     const zones = adjustZonesResolution(
-            //         section.zones,
-            //         backendResolution,
-            //         frontendResolution
-            //     );
-            //     console.log(activeSectionIndex);
+            getActiveSections(db.getSections(), ballMotionMat).then(activeSections => {
+                // only emit something if there's a change
+                lastActiveSections = activeSections
+                    .map((matchCount, activeSectionIndex) => {
+                        if (matchCount !== undefined) {
+                            const section = db.getSection(activeSectionIndex);
+                            const zones = adjustZonesResolution(
+                                section.zones,
+                                backendResolution,
+                                frontendResolution
+                            );
 
-            //     lastActiveSection = { index: activeSectionIndex, zones };
-            // }
-            setTimeout(fetchActiveSection, 5);
-        });
+                            return { index: activeSectionIndex, zones };
+                        }
+                        return null;
+                    })
+                    .filter(s => s !== null);
+                capturesDoneWithinInterval++;
+                // console.log(JSON.stringify(lastActiveSections.map(s => s.index)));
+                setTimeout(fetchActiveSection, 5);
+            });
+        } catch (e) {
+            console.warn(e);
+            setTimeout(fetchActiveSection, 1000);
+        }
     });
 };
 fetchActiveSection();
