@@ -86,6 +86,17 @@ const devicePort = 1;
 const wCap = new cv.VideoCapture(devicePort);
 wCap.set(cv.CAP_PROP_FRAME_WIDTH, backendResolution.width);
 wCap.set(cv.CAP_PROP_FRAME_HEIGHT, backendResolution.height);
+wCap.set(cv.CAP_PROP_SATURATION, 50);
+wCap.set(cv.CAP_PROP_CONTRAST, 40);
+wCap.set(cv.CAP_PROP_BRIGHTNESS, 120);
+// doesn't seem to work
+// wCap.set(cv.CAP_PROP_WHITE_BALANCE_BLUE_U, 99);
+// wCap.set(cv.CAP_PROP_WHITE_BALANCE_RED_V, 99);
+
+// Brightness = cap.get(CV_CAP_PROP_BRIGHTNESS);
+// Contrast   = cap.get(CV_CAP_PROP_CONTRAST );
+// Saturation = cap.get(CV_CAP_PROP_SATURATION);
+// Gain       = cap.get(CV_CAP_PROP_GAIN);
 
 // const defaults = {
 //     detectShadows: true,
@@ -119,11 +130,14 @@ const fetchActiveSection = () => {
         const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
         let ballMat;
 
+        // cv.imshowWait("image", imageMat);
+
         try {
             try {
                 lastTransformationMatrixMat = getTransformationMatrixMat(
                     imageMat,
-                    db.getCornerHSVMasks()
+                    db.getCornerHSVMasks(),
+                    backendResolution
                 );
                 staleTransformationMatrixCount = 0;
             } catch (e) {

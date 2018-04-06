@@ -3,6 +3,18 @@ import { setGridByZones, getEmptyGrid, cloneGrid, getZonesByGrid } from "./Calib
 
 import "./Calibrate.css";
 
+const messages = {
+    // subscriptions
+    loadedSection: "loadedSection",
+    activeImage: "activeImage",
+    activeSections: "activeSections",
+    // emits
+    requestImage: "requestImage",
+    requestActiveSections: "requestActiveSections",
+    loadSection: "loadSection",
+    saveSection: "saveSection"
+}
+
 class Calibrate extends Component {
     constructor(props) {
         super(props);
@@ -21,20 +33,26 @@ class Calibrate extends Component {
         this.sectionIndexChange = this.sectionIndexChange.bind(this);
     }
 
+    componentWillUnmount() {
+        this.props.socket.off(messages.loadedSection);
+        this.props.socket.off(messages.activeImage);
+        this.props.socket.off(messages.activeSections);
+    }
+
     componentDidMount() {
         this.grid = getEmptyGrid();
         this.activeGrid = getEmptyGrid();
 
         this.props.socket.on(
-            "loadedSection",
+            messages.loadedSection,
             function(loadedSectionInfo) {
                 this.grid = getEmptyGrid();
                 this.setGrid(this.grid, loadedSectionInfo.zones);
             }.bind(this)
         );
-        this.props.socket.on("activeImage", this.setImage.bind(this));
+        this.props.socket.on(messages.activeImage, this.setImage.bind(this));
         this.props.socket.on(
-            "activeSections",
+            messages.activeSections,
             function(activeSections) {
                 if (activeSections) {
                     this.setState({
@@ -50,16 +68,12 @@ class Calibrate extends Component {
 
         setInterval(() => {
             if (this.props.socket.connected && this.isImageElementReady()) {
-                this.props.socket.emit("requestImage", {
+                this.props.socket.emit(messages.requestImage, {
                     showMaskedImage: this.state.showMaskedImage
                 });
-                this.props.socket.emit("requestActiveSections");
+                this.props.socket.emit(messages.requestActiveSections);
             }
         }, 550);
-
-        // fetch("/image")
-        //     .then(data => data.text())
-        //     .then(base64Image => this.setImage(base64Image));
     }
 
     isImageElementReady() {
@@ -102,7 +116,7 @@ class Calibrate extends Component {
 
     onGridLoadClick(e) {
         e.preventDefault();
-        this.props.socket.emit("loadSection", this.state.sectionIndexInputValue);
+        this.props.socket.emit(messages.loadSection, this.state.sectionIndexInputValue);
         // e.target.children.sectionIndex.value
         this.grid = getEmptyGrid();
         this.forceUpdate();
@@ -110,7 +124,7 @@ class Calibrate extends Component {
 
     onGridSaveClick(e) {
         e.preventDefault();
-        this.props.socket.emit("saveSection", {
+        this.props.socket.emit(messages.saveSection, {
             zones: getZonesByGrid(this.grid),
             resolution: { height: 480, width: 640 },
             index: this.state.sectionIndexInputValue

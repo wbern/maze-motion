@@ -1,6 +1,57 @@
 const cv = require("opencv4nodejs");
 
-module.exports = (imageMat, cornerHSVMasks, cornerOffset = 15) => {
+const getCorners = (contours, cornerOffset) => {
+    const bounds = contours.map(c => c.boundingRect());
+
+    const centeredValue = (axisValue, sizeValue) => axisValue + sizeValue / 2;
+
+    const highestTwoXBounds = bounds
+        .sort((a, b) => centeredValue(a.x, a.width) > centeredValue(b.x, b.width))
+        .slice(-2);
+    const lowestTwoXBounds = bounds
+        .sort((a, b) => centeredValue(a.x, a.width) < centeredValue(b.x, b.width))
+        .slice(-2);
+
+    // of the two right-most bounds, which one is upper and lower?
+    const topRight =
+        highestTwoXBounds[0].y < highestTwoXBounds[1].y
+            ? highestTwoXBounds[0]
+            : highestTwoXBounds[1];
+    const bottomRight =
+        highestTwoXBounds[0].y > highestTwoXBounds[1].y
+            ? highestTwoXBounds[0]
+            : highestTwoXBounds[1];
+    // of the two left-most bounds, which one is upper and lower?
+    const topLeft =
+        lowestTwoXBounds[0].y < lowestTwoXBounds[1].y ? lowestTwoXBounds[0] : lowestTwoXBounds[1];
+    const bottomLeft =
+        lowestTwoXBounds[0].y > lowestTwoXBounds[1].y ? lowestTwoXBounds[0] : lowestTwoXBounds[1];
+
+    return [
+        // top-left
+        new cv.Point(
+            centeredValue(topLeft.x, topLeft.width) - cornerOffset,
+            centeredValue(topLeft.y, topLeft.height) - cornerOffset
+        ),
+        // top-right
+        new cv.Point(
+            centeredValue(topRight.x, topRight.width) + cornerOffset,
+            centeredValue(topRight.y, topRight.height) - cornerOffset
+        ),
+        // bottom-right
+        new cv.Point(
+            centeredValue(bottomRight.x, bottomRight.width) + cornerOffset,
+            centeredValue(bottomRight.y, bottomRight.height) + cornerOffset
+        ),
+        // bottom-left
+        new cv.Point(
+            centeredValue(bottomLeft.x, bottomLeft.width) - cornerOffset,
+            centeredValue(bottomLeft.y, bottomLeft.height) + cornerOffset
+        )
+    ];
+};
+
+module.exports = (imageMat, cornerHSVMasks, targetResolution, cornerOffset = 15, erodePixels = 0) => {
     const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
     let maskedCornersMat;
 
@@ -14,6 +65,12 @@ module.exports = (imageMat, cornerHSVMasks, cornerOffset = 15) => {
 
     // get the contours of the corners
     maskedCornersMat = maskedCornersMat.cvtColor(cv.COLOR_BGR2GRAY);
+    if (erodePixels && erodePixels > 0) {
+        maskedCornersMat = maskedCornersMat.erode(
+            new cv.Mat(Array(erodePixels).fill([255, 255, 255]), cv.CV_8U)
+        );
+    }
+
     const mode = cv.RETR_EXTERNAL;
     const findContoursMethod = cv.CHAIN_APPROX_NONE;
     let contours = maskedCornersMat.findContours(mode, findContoursMethod);
@@ -44,74 +101,20 @@ module.exports = (imageMat, cornerHSVMasks, cornerOffset = 15) => {
 
     if (contours.length === 4) {
         // we have the right amount of contours for each corner, continue
-        const getCorners = contours => {
-            const bounds = contours.map(c => c.boundingRect());
 
-            const centeredValue = (axisValue, sizeValue) => axisValue + sizeValue / 2;
+        const srcPoints = getCorners(contours, cornerOffset);
 
-            const highestTwoXBounds = bounds
-                .sort((a, b) => centeredValue(a.x, a.width) > centeredValue(b.x, b.width))
-                .slice(-2);
-            const lowestTwoXBounds = bounds
-                .sort((a, b) => centeredValue(a.x, a.width) < centeredValue(b.x, b.width))
-                .slice(-2);
-
-            // of the two right-most bounds, which one is upper and lower?
-            const topRight =
-                highestTwoXBounds[0].y < highestTwoXBounds[1].y
-                    ? highestTwoXBounds[0]
-                    : highestTwoXBounds[1];
-            const bottomRight =
-                highestTwoXBounds[0].y > highestTwoXBounds[1].y
-                    ? highestTwoXBounds[0]
-                    : highestTwoXBounds[1];
-            // of the two left-most bounds, which one is upper and lower?
-            const topLeft =
-                lowestTwoXBounds[0].y < lowestTwoXBounds[1].y
-                    ? lowestTwoXBounds[0]
-                    : lowestTwoXBounds[1];
-            const bottomLeft =
-                lowestTwoXBounds[0].y > lowestTwoXBounds[1].y
-                    ? lowestTwoXBounds[0]
-                    : lowestTwoXBounds[1];
-
-            return [
-                // top-left
-                new cv.Point(
-                    centeredValue(topLeft.x, topLeft.width) - cornerOffset,
-                    centeredValue(topLeft.y, topLeft.height) - cornerOffset
-                ),
-                // top-right
-                new cv.Point(
-                    centeredValue(topRight.x, topRight.width) + cornerOffset,
-                    centeredValue(topRight.y, topRight.height) - cornerOffset
-                ),
-                // bottom-right
-                new cv.Point(
-                    centeredValue(bottomRight.x, bottomRight.width) + cornerOffset,
-                    centeredValue(bottomRight.y, bottomRight.height) + cornerOffset
-                ),
-                // bottom-left
-                new cv.Point(
-                    centeredValue(bottomLeft.x, bottomLeft.width) - cornerOffset,
-                    centeredValue(bottomLeft.y, bottomLeft.height) + cornerOffset
-                )
-            ];
-        };
-
-        getCorners(contours);
-
-        const srcPoints = getCorners(contours);
+        const sideMargin = (targetResolution.width - targetResolution.height) / 2;
 
         const dstPoints = [
             // top-left
-            new cv.Point(0, 0),
+            new cv.Point(0 + sideMargin, 0),
             // top-right
-            new cv.Point(240, 0),
+            new cv.Point(targetResolution.width - sideMargin, 0),
             // bottom-right
-            new cv.Point(240, 240),
+            new cv.Point(targetResolution.width - sideMargin, targetResolution.height),
             // bottom-left
-            new cv.Point(0, 240)
+            new cv.Point(0 + sideMargin, targetResolution.height)
         ];
 
         const transformationMatrixMat = cv.getPerspectiveTransform(srcPoints, dstPoints);
