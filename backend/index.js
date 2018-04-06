@@ -14,7 +14,7 @@ var db = require("./db");
 
 // globals
 const frontendResolution = { height: 480, width: 640 };
-const backendResolution = { height: 240, width: 320 };
+const backendResolution = { height: 480, width: 640 };
 let lastRetrievedImageMat;
 let lastRetrievedBallMat;
 let lastActiveSections;
@@ -73,6 +73,16 @@ io.on("connection", function(socket) {
                 const base64 = new Buffer(image).toString("base64");
                 socket.emit("activeImage", base64);
             }
+        }
+    });
+
+    socket.on("requestCornerStatus", () => {
+        if (staleTransformationMatrixCount === 0) {
+            socket.emit("cornerStatus", "ok");
+        } else if (staleTransformationMatrixCount < 10) {
+            socket.emit("cornerStatus", "warn");
+        } else {
+            socket.emit("cornerStatus", "err");
         }
     });
 
@@ -162,7 +172,9 @@ const fetchActiveSection = () => {
 
             imageMat = imageMat.warpPerspective(
                 lastTransformationMatrixMat,
-                new cv.Size(backendResolution.width, backendResolution.height)
+                new cv.Size(backendResolution.width, backendResolution.height),
+                // http://tanbakuchi.com/posts/comparison-of-openv-interpolation-algorithms/#Upsampling-comparison
+                cv.INTER_CUBIC
             );
 
             lastRetrievedImageMat = imageMat;

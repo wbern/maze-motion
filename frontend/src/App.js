@@ -1,6 +1,25 @@
 import openSocket from "socket.io-client";
 
 import React, { Component } from "react";
+import {
+    Nav,
+    Navbar,
+    NavItem,
+    NavDropdown,
+    Grid,
+    Button,
+    Row,
+    Col,
+    FormControl,
+    Checkbox,
+    Panel,
+    FormGroup,
+    InputGroup,
+    DropdownButton,
+    MenuItem,
+    Form
+} from "react-bootstrap";
+
 // import logo from "./logo.svg";
 import "./App.css";
 
@@ -15,7 +34,9 @@ class App extends Component {
     constructor(props) {
         super(props);
 
-        this.state = {};
+        this.state = {
+            view: enums.CALIBRATE
+        };
 
         // this.loadedActiveSection = this.loadedActiveSection.bind(this);
     }
@@ -49,19 +70,25 @@ class App extends Component {
     render() {
         return (
             <div className="App">
-                <h1 className="App-title" onClick={() => this.setView(enums.VIEW)}>
-                    Debug
-                </h1>
-                <h1 className="App-title" onClick={() => this.setView(enums.CALIBRATE)}>
-                    Calibrate
-                </h1>
-                <p className="App-intro">
-                    To get started, edit <code>src/App.js</code> and save to reload.
-                </p>
-                <div>
-                    {this.getView()}
-                    {/* {this.state.activeSection.index} */}
-                </div>
+                <Navbar>
+                    <Navbar.Header>
+                        <Navbar.Brand>
+                            <a onClick={() => this.setView(enums.VIEW)}>Play</a>
+                        </Navbar.Brand>
+                    </Navbar.Header>
+                    <Nav>
+                        <NavItem
+                            onClick={() => this.setView(enums.CALIBRATE)}
+                            eventKey={1}
+                            href="#"
+                        >
+                            Calibrate
+                        </NavItem>
+                    </Nav>
+                </Navbar>
+                <Row>
+                    <div>{this.getView()}</div>
+                </Row>
             </div>
         );
     }

@@ -51,7 +51,7 @@ const getCorners = (contours, cornerOffset) => {
     ];
 };
 
-module.exports = (imageMat, cornerHSVMasks, targetResolution, cornerOffset = 15, erodePixels = 0) => {
+module.exports = (imageMat, cornerHSVMasks, targetResolution, cornerOffset = 5, erodePixels = 0) => {
     const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
     let maskedCornersMat;
 

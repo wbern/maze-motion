@@ -1,5 +1,31 @@
 import React, { Component } from "react";
+import {
+    Grid,
+    Button,
+    Row,
+    Col,
+    FormControl,
+    Checkbox,
+    Panel,
+    FormGroup,
+    InputGroup,
+    DropdownButton,
+    MenuItem,
+    Form,
+    ControlLabel,
+    PageHeader,
+    ListGroup,
+    ListGroupItem
+} from "react-bootstrap";
+import FontAwesome from "react-fontawesome";
 import { setGridByZones, getEmptyGrid, cloneGrid, getZonesByGrid } from "./Calibrate.functions";
+
+import "rc-color-picker/assets/index.css";
+import ColorPicker from "rc-color-picker";
+
+import ColorSelector from "./ColorSelector";
+import CameraSettings from "./CameraSettings";
+import Statistics from "./Statistics";
 
 import "./Calibrate.css";
 
@@ -8,12 +34,14 @@ const messages = {
     loadedSection: "loadedSection",
     activeImage: "activeImage",
     activeSections: "activeSections",
+    cornerStatus: "cornerStatus",
     // emits
     requestImage: "requestImage",
     requestActiveSections: "requestActiveSections",
+    requestCornerStatus: "requestCornerStatus",
     loadSection: "loadSection",
     saveSection: "saveSection"
-}
+};
 
 class Calibrate extends Component {
     constructor(props) {
@@ -33,16 +61,30 @@ class Calibrate extends Component {
         this.sectionIndexChange = this.sectionIndexChange.bind(this);
     }
 
-    componentWillUnmount() {
-        this.props.socket.off(messages.loadedSection);
-        this.props.socket.off(messages.activeImage);
-        this.props.socket.off(messages.activeSections);
-    }
+    subscribe() {
+        // connection-related
+        const setConnected = function() {
+            this.setState({ connected: true });
+        }.bind(this);
+        const setDisconnected = function() {
+            this.setState({ connected: true });
+        }.bind(this);
 
-    componentDidMount() {
-        this.grid = getEmptyGrid();
-        this.activeGrid = getEmptyGrid();
+        this.props.socket.on("connection", setConnected);
+        this.props.socket.on("disconnect", setDisconnected);
 
+        if (this.props.socket.connected) {
+            setConnected();
+        } else {
+            setDisconnected();
+        }
+
+        this.props.socket.on(
+            messages.cornerStatus,
+            function(cornerStatus) {
+                this.setState({ cornerStatus });
+            }.bind(this)
+        );
         this.props.socket.on(
             messages.loadedSection,
             function(loadedSectionInfo) {
@@ -65,13 +107,38 @@ class Calibrate extends Component {
                 }
             }.bind(this)
         );
+    }
+
+    unsubscribe() {
+        this.props.socket.off(messages.loadedSection);
+        this.props.socket.off(messages.activeImage);
+        this.props.socket.off(messages.activeSections);
+        this.props.socket.off(messages.cornerStatus);
+    }
+
+    componentWillUnmount() {
+        this.unsubscribe();
+    }
+
+    componentDidMount() {
+        this.grid = getEmptyGrid();
+        this.activeGrid = getEmptyGrid();
+
+        this.subscribe();
 
         setInterval(() => {
-            if (this.props.socket.connected && this.isImageElementReady()) {
-                this.props.socket.emit(messages.requestImage, {
-                    showMaskedImage: this.state.showMaskedImage
-                });
+            // request things
+            if (this.props.socket.connected) {
+                if (this.isImageElementReady()) {
+                    // image-specific
+                    this.props.socket.emit(messages.requestImage, {
+                        showMaskedImage: this.state.showMaskedImage
+                    });
+                }
+
+                // general things
                 this.props.socket.emit(messages.requestActiveSections);
+                this.props.socket.emit(messages.requestCornerStatus);
             }
         }, 550);
     }
@@ -204,89 +271,135 @@ class Calibrate extends Component {
     render() {
         return (
             <div className="calibrate">
-                <h2>
-                    Here we calibrate stuff (active index:{" "}
-                    {this.state.activeSections &&
-                        JSON.stringify(this.state.activeSections.map(s => s.index))})
-                </h2>
-                <div className="calibrateControls">
-                    <form>
-                        <input
-                            type="number"
-                            className="formControl"
-                            name="sectionIndex"
-                            onChange={this.sectionIndexChange}
-                            max="99"
-                            min="0"
-                            value={this.state.sectionIndexInputValue}
-                        />
-                    </form>
-                    <input
-                        className="formControl"
-                        type="button"
-                        onClick={this.onGridLoadClick}
-                        value="Load"
-                    />
-                    <input
-                        className="formControl"
-                        type="button"
-                        onClick={this.onGridSaveClick}
-                        value="Save"
-                    />
-                    <input
-                        className="formControl"
-                        type="button"
-                        onClick={this.onGridClearClick}
-                        value="Clear"
-                    />
-                    <input
-                        type="checkbox"
-                        value={this.state.showMaskedImage}
-                        onClick={e => {
-                            this.setState({ showMaskedImage: e.target.checked });
-                        }}
-                    />
-                    <label>Show image mask</label>
-                </div>
-                <div className="imageContainer">
-                    <img
-                        ref={this.saveImageRef.bind(this)}
-                        onLoad={() => (this.imageLoaded = true)}
-                        className="image"
-                        src={this.state.base64Image}
-                        alt="Loading"
-                    />
-                    <div className="grid">
-                        {this.grid &&
-                            this.grid.map((rows, rowIndex) => (
-                                <div key={rowIndex}>
-                                    {rows.map((col, colIndex) => {
-                                        const activeValue = this.activeGrid[rowIndex][colIndex];
-                                        const blockValue = this.grid[rowIndex][colIndex];
-
-                                        return (
-                                            <div
-                                                key={colIndex}
-                                                onMouseDown={this.onMouseDown}
-                                                onMouseUp={this.onMouseUp}
-                                                onMouseEnter={this.blockHover}
-                                                id={rowIndex + "-" + colIndex}
-                                                className={
-                                                    "block block-" +
-                                                    blockValue +
-                                                    (activeValue ? " block-active" : "")
-                                                }
+                <Grid>
+                    <Row>
+                        <Col xs={7}>
+                            <Row>
+                                <Col xs={4} style={{ paddingLeft: 0 }}>
+                                    <FormGroup>
+                                        <InputGroup>
+                                            <FormControl
+                                                type="number"
+                                                name="sectionIndex"
+                                                onChange={this.sectionIndexChange}
+                                                max="61"
+                                                min="0"
+                                                value={this.state.sectionIndexInputValue}
+                                            />
+                                            <DropdownButton
+                                                componentClass={InputGroup.Button}
+                                                id="input-dropdown-addon"
+                                                title="Action"
                                             >
-                                                {activeValue !== 0
-                                                    ? this.activeGrid[rowIndex][colIndex]
-                                                    : null}
-                                            </div>
-                                        );
-                                    })}
+                                                <MenuItem key="Load" onClick={this.onGridLoadClick}>
+                                                    Load
+                                                </MenuItem>
+                                                <MenuItem key="Save" onClick={this.onGridSaveClick}>
+                                                    Save
+                                                </MenuItem>
+                                            </DropdownButton>
+                                        </InputGroup>
+                                    </FormGroup>
+                                </Col>
+                                <Col xs={2}>
+                                    <Form>
+                                        <Button
+                                            type="button"
+                                            onClick={this.onGridClearClick}
+                                            value="Clear"
+                                        >
+                                            Clear
+                                        </Button>
+                                    </Form>
+                                </Col>
+                                <Col xs={6}>
+                                    <Form>
+                                        <Checkbox
+                                            value={this.state.showMaskedImage}
+                                            onClick={e => {
+                                                this.setState({
+                                                    showMaskedImage: e.target.checked
+                                                });
+                                            }}
+                                        >
+                                            Mask
+                                        </Checkbox>
+                                    </Form>
+                                </Col>
+                            </Row>
+                            <Row>
+                                <div className="imageContainer">
+                                    <img
+                                        ref={this.saveImageRef.bind(this)}
+                                        onLoad={() => (this.imageLoaded = true)}
+                                        className="image"
+                                        src={this.state.base64Image || null}
+                                        alt={this.state.base64Image ? "Camera Image" : null}
+                                    />
+                                    <div className="grid">
+                                        {this.grid &&
+                                            this.grid.map((rows, rowIndex) => (
+                                                <div key={rowIndex}>
+                                                    {rows.map((col, colIndex) => {
+                                                        const activeValue = this.activeGrid[
+                                                            rowIndex
+                                                        ][colIndex];
+                                                        const blockValue = this.grid[rowIndex][
+                                                            colIndex
+                                                        ];
+
+                                                        return (
+                                                            <div
+                                                                key={colIndex}
+                                                                onMouseDown={this.onMouseDown}
+                                                                onMouseUp={this.onMouseUp}
+                                                                onMouseEnter={this.blockHover}
+                                                                id={rowIndex + "-" + colIndex}
+                                                                className={
+                                                                    "block block-" +
+                                                                    blockValue +
+                                                                    (activeValue
+                                                                        ? " block-active"
+                                                                        : "")
+                                                                }
+                                                            >
+                                                                {activeValue !== 0
+                                                                    ? this.activeGrid[rowIndex][
+                                                                          colIndex
+                                                                      ]
+                                                                    : null}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ))}
+                                    </div>
                                 </div>
-                            ))}
-                    </div>
-                </div>
+                            </Row>
+                        </Col>
+                        <Col xs={5}>
+                            <Row>
+                                <Statistics
+                                    activeSections={this.state.activeSections}
+                                    cornerStatus={this.state.cornerStatus}
+                                    connected={this.state.connected}
+                                />
+                            </Row>
+                            <Row>
+                                <CameraSettings />
+                            </Row>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <h1 className="text-left">Color Calibration</h1>
+                        <Col xs={5}>
+                            <ColorSelector textLabel="Corner Color Ranges" />
+                        </Col>
+                        <Col xs={5} xsOffset={2}>
+                            <ColorSelector textLabel="Ball Color Ranges" />
+                        </Col>
+                    </Row>
+                </Grid>
             </div>
         );
     }
