@@ -4,7 +4,25 @@ import { ListGroup, Row, ListGroupItem } from "react-bootstrap";
 import ColorSelectorGroup from "./ColorSelectorGroup";
 
 export class ColorSelector extends React.Component {
-    componentWillMount() {}
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            items: [
+                {
+                    min: [0, 1, 2],
+                    max: [3, 4, 5]
+                },
+                {
+                    min: [0, 1, 2],
+                    max: [3, 4, 5]
+                }
+            ]
+        };
+    }
+
+    componentWillMount() {
+    }
 
     componentDidMount() {}
 
@@ -13,9 +31,14 @@ export class ColorSelector extends React.Component {
             <Row>
                 <h2 className="text-left">{this.props.textLabel}</h2>
                 <ListGroup>
-                    <ListGroupItem>
-                        <ColorSelectorGroup />
-                    </ListGroupItem>
+                    {this.state.items &&
+                        this.state.items.map((item, index) => {
+                            return (
+                                <ListGroupItem>
+                                    <ColorSelectorGroup colors={item} />
+                                </ListGroupItem>
+                            );
+                        })}
                 </ListGroup>
             </Row>
         );

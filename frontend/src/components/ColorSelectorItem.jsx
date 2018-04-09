@@ -2,8 +2,25 @@ import React from "react";
 import { Form, Col, InputGroup, FormControl, ControlLabel } from "react-bootstrap";
 import ColorPicker from "rc-color-picker";
 
+import convert from "color-convert";
+
 export class ColorSelectorItem extends React.Component {
-    componentWillMount() {}
+    constructor(props) {
+        super(props);
+
+        this.onClose = this.onClose.bind(this);
+    }
+
+    onClose(data) {
+        const hsv = convert.hex.hsv(data.color);
+        if (this.props.onChange) {
+            this.props.onChange(hsv);
+        }
+    }
+
+    componentWillMount() {
+        this.state = { defaultColorHsv: convert.hsv.hex(this.props.defaultColor) };
+    }
 
     componentDidMount() {}
 
@@ -17,10 +34,11 @@ export class ColorSelectorItem extends React.Component {
                     <InputGroup>
                         <InputGroup.Addon style={{ lineHeight: 0 }}>
                             <ColorPicker
-                                animation="slide-up"
+                                animation=""
                                 enableAlpha={false}
                                 mode={"HSB"}
-                                color={"#000"}
+                                defaultColor={this.state.defaultColorHsv}
+                                onClose={this.onClose}
                                 // onChange={changeHandler}
                             />
                         </InputGroup.Addon>

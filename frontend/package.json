@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "color-convert": "^1.9.1",
     "rc-color-picker": "^1.2.6",
     "react": "^16.2.0",
     "react-bootstrap": "^0.32.1",
