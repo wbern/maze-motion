@@ -86,7 +86,7 @@ class Calibrate extends Component {
 
         // to get hsv corner masks
         const loadedCornerHSVMasks = function(cornerHSVMasks) {
-            this.setState({cornerHSVMasks})
+            this.setState({ cornerHSVMasks });
         }.bind(this);
         this.props.socket.on(messages.cornerHSVMasks, loadedCornerHSVMasks);
 
@@ -97,6 +97,9 @@ class Calibrate extends Component {
                 this.setState({ cornerStatus });
             }.bind(this)
         );
+
+        // image buffer
+        const loadedImageBuffer = function(imageBuffer) {};
 
         // section-related
         this.props.socket.on(
@@ -158,17 +161,21 @@ class Calibrate extends Component {
                 this.props.socket.emit(messages.requestActiveSections);
                 this.props.socket.emit(messages.requestCornerStatus);
             }
-        }, 550);
+        }, 500);
     }
 
     isImageElementReady() {
         return this.imageElement && this.imageLoaded !== false;
     }
 
-    setImage(base64Image) {
+    setImage(binaryImage) {
+        const uint8Arr = new Uint8Array(binaryImage);
+
         if (this.isImageElementReady()) {
             this.imageLoaded = false;
-            this.imageElement.src = "data:image/jpeg;base64," + base64Image;
+            const imageUrl = URL.createObjectURL(new Blob([uint8Arr], {type: "image/png"}));
+            // this.imageElement.src = "data:image/jpeg;base64," + blob;
+            this.imageElement.src = imageUrl;
         }
     }
 
@@ -355,10 +362,8 @@ class Calibrate extends Component {
                                 <div className="imageContainer">
                                     <img
                                         ref={this.saveImageRef.bind(this)}
-                                        onLoad={() => (this.imageLoaded = true)}
+                                        onLoad={(e) => {this.imageLoaded = true; URL.revokeObjectURL(e.target.src);}}
                                         className="image"
-                                        src={this.state.base64Image || null}
-                                        alt={this.state.base64Image ? "Camera Image" : null}
                                     />
                                     <div className="grid">
                                         {this.grid &&

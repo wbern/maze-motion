@@ -75,16 +75,25 @@ io.on("connection", function(socket) {
     socket.on("requestImage", data => {
         if (lastRetrievedBallMat) {
             if (data.showMaskedImage) {
-                const image = cv.imencode(".jpg", lastRetrievedBallMat);
-                const base64 = new Buffer(image).toString("base64");
-                socket.emit("activeImageMask", base64);
+                // const image = cv.imencode(".jpg", lastRetrievedBallMat);
+                // const base64 = new Buffer(image).toString("base64");
+                // socket.emit("activeImageMask", base64);
+                socket.emit("activeImage", lastRetrievedBallMat.toBuffer());
             } else {
-                const image = cv.imencode(".jpg", lastRetrievedImageMat);
-                const base64 = new Buffer(image).toString("base64");
-                socket.emit("activeImage", base64);
+                // const image = cv.imencode(".jpg", lastRetrievedImageMat);
+                // const base64 = new Buffer(image).toString("base64");
+                // socket.emit("activeImage", new Buffer(image));
+                socket.emit("activeImage", lastRetrievedImageMat.toBuffer());
             }
         }
     });
+
+    // setInterval(() => {
+    //     if (lastRetrievedImageMat) {
+    //         const image = cv.imencode(".jpg", lastRetrievedImageMat);
+    //         io.emit("imageBuffer", image);
+    //     }
+    // }, 500);
 
     socket.on("requestCornerStatus", () => {
         if (staleTransformationMatrixCount === 0) {
@@ -102,7 +111,7 @@ io.on("connection", function(socket) {
 });
 
 // open capture from webcam
-const devicePort = 1;
+const devicePort = 0;
 const wCap = new cv.VideoCapture(devicePort);
 wCap.set(cv.CAP_PROP_FRAME_WIDTH, backendResolution.width);
 wCap.set(cv.CAP_PROP_FRAME_HEIGHT, backendResolution.height);
@@ -151,6 +160,7 @@ const fetchActiveSection = () => {
         let ballMat;
 
         // cv.imshowWait("image", imageMat);
+        lastRetrievedImageMat = imageMat;        
 
         try {
             try {
