@@ -1,0 +1,8 @@
+.listGroupItem {
+    display: flex;
+    align-items: center;
+}
+
+.notCreated {
+    opacity: 0.3;
+}

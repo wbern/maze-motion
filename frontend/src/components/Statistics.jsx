@@ -7,13 +7,15 @@ export class Statistics extends React.Component {
 
     componentDidMount() {}
 
-    getCornerStatusIcon(cornerStatusText) {
-        switch (cornerStatusText) {
+    getCornerStatusIcon(cornerStatus) {
+        switch (cornerStatus) {
             case "ok":
                 return "check-circle";
             case "warn":
                 return "exclamation-triangle";
             case "err":
+                return "times-circle";
+            default:
                 return "times-circle";
         }
     }
@@ -56,8 +58,6 @@ export class Statistics extends React.Component {
                         <Col xs={8} className="text-left">
                             <FontAwesome
                                 name={
-                                    this.props &&
-                                    this.props.cornerStatus &&
                                     this.getCornerStatusIcon(this.props.cornerStatus)
                                 }
                             />

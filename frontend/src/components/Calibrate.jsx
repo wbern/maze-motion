@@ -35,12 +35,15 @@ const messages = {
     activeImage: "activeImage",
     activeSections: "activeSections",
     cornerStatus: "cornerStatus",
+    cornerHSVMasks: "cornerHSVMasks",
     // emits
     requestImage: "requestImage",
     requestActiveSections: "requestActiveSections",
     requestCornerStatus: "requestCornerStatus",
     loadSection: "loadSection",
-    saveSection: "saveSection"
+    saveSection: "saveSection",
+    saveCornerHSVMasks: "saveCornerHSVMasks",
+    requestCornerHSVMasks: "requestCornerHSVMasks"
 };
 
 class Calibrate extends Component {
@@ -65,26 +68,37 @@ class Calibrate extends Component {
         // connection-related
         const setConnected = function() {
             this.setState({ connected: true });
+            this.requestInitialData();
         }.bind(this);
         const setDisconnected = function() {
-            this.setState({ connected: true });
+            this.setState({ connected: false });
         }.bind(this);
 
-        this.props.socket.on("connection", setConnected);
+        this.props.socket.on("connect", setConnected);
         this.props.socket.on("disconnect", setDisconnected);
 
         if (this.props.socket.connected) {
             setConnected();
+            this.requestInitialData();
         } else {
             setDisconnected();
         }
 
+        // to get hsv corner masks
+        const loadedCornerHSVMasks = function(cornerHSVMasks) {
+            this.setState({cornerHSVMasks})
+        }.bind(this);
+        this.props.socket.on(messages.cornerHSVMasks, loadedCornerHSVMasks);
+
+        // get statuses
         this.props.socket.on(
             messages.cornerStatus,
             function(cornerStatus) {
                 this.setState({ cornerStatus });
             }.bind(this)
         );
+
+        // section-related
         this.props.socket.on(
             messages.loadedSection,
             function(loadedSectionInfo) {
@@ -114,6 +128,10 @@ class Calibrate extends Component {
         this.props.socket.off(messages.activeImage);
         this.props.socket.off(messages.activeSections);
         this.props.socket.off(messages.cornerStatus);
+    }
+
+    requestInitialData() {
+        this.props.socket.emit(messages.requestCornerHSVMasks);
     }
 
     componentWillUnmount() {
@@ -268,6 +286,12 @@ class Calibrate extends Component {
         }
     }
 
+    saveHsvMaskRanges(maskName, ranges) {
+        if (maskName === "cornerHSVMasks") {
+            this.props.socket.emit(messages.saveCornerHSVMasks, ranges);
+        }
+    }
+
     render() {
         return (
             <div className="calibrate">
@@ -393,11 +417,17 @@ class Calibrate extends Component {
                     <Row>
                         <h1 className="text-left">Color Calibration</h1>
                         <Col xs={5}>
-                            <ColorSelector textLabel="Corner Color Ranges" />
+                            <ColorSelector
+                                onChange={ranges =>
+                                    this.saveHsvMaskRanges("cornerHSVMasks", ranges)
+                                }
+                                defaultItems={this.state.cornerHSVMasks}
+                                textLabel="Corner Color Ranges"
+                            />
                         </Col>
-                        <Col xs={5} xsOffset={2}>
+                        {/* <Col xs={5} xsOffset={2}>
                             <ColorSelector textLabel="Ball Color Ranges" />
-                        </Col>
+                        </Col> */}
                     </Row>
                 </Grid>
             </div>

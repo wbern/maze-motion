@@ -8,6 +8,8 @@ export class ColorSelectorItem extends React.Component {
     constructor(props) {
         super(props);
 
+        this.state = { defaultColorHsv: "#" + convert.hsv.hex(this.props.defaultColor) };
+
         this.onClose = this.onClose.bind(this);
     }
 
@@ -19,7 +21,6 @@ export class ColorSelectorItem extends React.Component {
     }
 
     componentWillMount() {
-        this.state = { defaultColorHsv: convert.hsv.hex(this.props.defaultColor) };
     }
 
     componentDidMount() {}

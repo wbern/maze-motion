@@ -13,6 +13,8 @@ var io = require("socket.io").listen(server);
 var db = require("./db");
 
 // globals
+const captureDelay = 5; // 5 is prod-recommended for now
+const failedCaptureDelay = 1000;
 const frontendResolution = { height: 480, width: 640 };
 const backendResolution = { height: 480, width: 640 };
 let lastRetrievedImageMat;
@@ -60,6 +62,14 @@ io.on("connection", function(socket) {
             );
             socket.emit("loadedSection", { index, zones });
         }
+    });
+
+    socket.on("saveCornerHSVMasks", data => {
+        db.writeCornerHSVMasks(data);
+    });
+
+    socket.on("requestCornerHSVMasks", data => {
+        socket.emit("cornerHSVMasks", db.getCornerHSVMasks(data));
     });
 
     socket.on("requestImage", data => {
@@ -209,11 +219,11 @@ const fetchActiveSection = () => {
                     .filter(s => s !== null);
                 capturesDoneWithinInterval++;
                 // console.log(JSON.stringify(lastActiveSections.map(s => s.index)));
-                setTimeout(fetchActiveSection, 5);
+                setTimeout(fetchActiveSection, captureDelay);
             });
         } catch (e) {
             console.warn(e);
-            setTimeout(fetchActiveSection, 1000);
+            setTimeout(fetchActiveSection, failedCaptureDelay);
         }
     });
 };
