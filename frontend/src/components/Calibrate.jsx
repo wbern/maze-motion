@@ -53,7 +53,9 @@ class Calibrate extends Component {
         this.state = {
             lastActiveSections: null,
             sectionIndexInputValue: 1,
-            cameraFrameSkips: 1
+            cameraFrameSkips: 1,
+            cameraViewMode: "2D Image",
+            availableCameraViewModes: ["2D Image", "Image", "Corners Mask", "Ball Mask"]
         };
 
         this.blockHover = this.blockHover.bind(this);
@@ -151,7 +153,7 @@ class Calibrate extends Component {
                 if (this.isImageElementUpdatable()) {
                     // image-specific
                     this.emitIfConnected(messages.requestImage, {
-                        showMaskedImage: this.state.showMaskedImage
+                        cameraViewMode: this.state.cameraViewMode
                     });
                 }
             };
@@ -367,41 +369,7 @@ class Calibrate extends Component {
                                         </InputGroup>
                                     </Form>
                                 </Col>
-                                <Col xs={4}>
-                                    <Form>
-                                        {/* <Checkbox
-                                            value={this.state.showMaskedImage}
-                                            onClick={e => {
-                                                this.setState({
-                                                    showMaskedImage: e.target.checked
-                                                });
-                                            }}
-                                        >
-                                            Mask
-                                        </Checkbox> */}
-                                        <InputGroup className="specificSizedInputGroup">
-                                            <InputGroup.Addon className="specificSizedInputGroupItems">
-                                                Frame skips
-                                            </InputGroup.Addon>
-
-                                            <FormControl
-                                                type="number"
-                                                className="specificSizedInputGroupItems"
-                                                value={this.state.cameraFrameSkips}
-                                                min="0"
-                                                max="100"
-                                                onChange={e => {
-                                                    this.setState({
-                                                        cameraFrameSkips: Math.min(
-                                                            Math.max(e.target.value, 0),
-                                                            100
-                                                        )
-                                                    });
-                                                }}
-                                            />
-                                        </InputGroup>
-                                    </Form>
-                                </Col>
+                                <Col xs={4} />
                             </Row>
                             <Row className="imageWrapper">
                                 <div className="imageContainer">
@@ -467,10 +435,81 @@ class Calibrate extends Component {
                             </Row>
                         </Col>
                     </Row>
+                    <Row style={{ marginTop: "15px" }}>
+                        <Col xs={12}>
+                            <Col xs={7}>
+                                <Form inline horizontal>
+                                    <Col xs={8}>
+                                        <InputGroup className="specificSizedInputGroup">
+                                            <InputGroup.Addon
+                                                className="specificSizedInputGroupItems"
+                                                style={{ lineHeight: 0 }}
+                                            >
+                                                Camera Mode
+                                            </InputGroup.Addon>
+                                            <FormControl
+                                                type="text"
+                                                disabled
+                                                className="specificSizedInputGroupItems"
+                                                value={this.state.cameraViewMode}
+                                            />
+                                            <DropdownButton
+                                                componentClass={InputGroup.Button}
+                                                className="specificSizedInputGroupItems"
+                                                id="input-dropdown-addon"
+                                                title="Change"
+                                            >
+                                                {this.state.availableCameraViewModes.map(
+                                                    name => (
+                                                        <MenuItem
+                                                            key={name}
+                                                            onClick={() =>
+                                                                this.setState({
+                                                                    cameraViewMode: name
+                                                                })
+                                                            }
+                                                        >
+                                                            {name}
+                                                        </MenuItem>
+                                                    )
+                                                )}
+                                            </DropdownButton>
+                                        </InputGroup>
+                                    </Col>
+                                    <Col xs={4}>
+                                        <InputGroup className="specificSizedInputGroup">
+                                            <InputGroup.Addon className="specificSizedInputGroupItems">
+                                                Frame skips
+                                            </InputGroup.Addon>
+
+                                            <FormControl
+                                                type="number"
+                                                className="specificSizedInputGroupItems"
+                                                value={this.state.cameraFrameSkips}
+                                                min="0"
+                                                max="100"
+                                                onChange={e => {
+                                                    this.setState({
+                                                        cameraFrameSkips: Math.min(
+                                                            Math.max(e.target.value, 0),
+                                                            100
+                                                        )
+                                                    });
+                                                }}
+                                            />
+                                        </InputGroup>
+                                    </Col>
+                                </Form>
+                            </Col>
+                            {/* <Col xs={5} xsOffset={2}>
+                            <ColorSelector textLabel="Ball Color Ranges" />
+                        </Col> */}
+                        </Col>
+                    </Row>
                     <Row>
                         <Col xs={12}>
                             <h1 className="text-left">Color Calibration</h1>
-                            <Col xs={5}>
+                            <Col xs={7}>
                                 <ColorSelector
                                     onChange={ranges =>
                                         this.saveHsvMaskRanges("cornerHSVMasks", ranges)

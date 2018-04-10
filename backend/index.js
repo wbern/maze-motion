@@ -17,14 +17,13 @@ const captureDelay = parseInt(process.env.captureDelay || 5); // 5 is prod-recom
 const failedCaptureDelay = 1000;
 const frontendResolution = { height: 480, width: 640 };
 const backendResolution = { height: 480, width: 640 };
-let lastRetrievedImageMat;
-let lastRetrievedBallMat;
+const retrievedMats = {};
 let lastActiveSections;
 
 // endpoints
 app.get("/image", function(req, res) {
-    if (lastRetrievedImageMat) {
-        const image = cv.imencode(".jpg", lastRetrievedImageMat);
+    if (retrievedMats["2D Image"]) {
+        const image = cv.imencode(".jpg", retrievedMats["2D Image"]);
         const base64 = new Buffer(image).toString("base64");
         res.status(200).send(base64);
     } else {
@@ -73,26 +72,33 @@ io.on("connection", function(socket) {
     });
 
     socket.on("requestImage", data => {
-        if (data.showMaskedImage) {
-            if (lastRetrievedBallMat) {
-                // const image = cv.imencode(".jpg", lastRetrievedBallMat);
-                // const base64 = new Buffer(image).toString("base64");
-                // socket.emit("activeImageMask", base64);
-                socket.emit("activeImage", lastRetrievedBallMat.toBuffer());
-            }
-        } else {
-            if (lastRetrievedImageMat) {
-                const image = cv.imencode(".png", lastRetrievedImageMat);
-                // const base64 = new Buffer(image).toString("base64");
-                // socket.emit("activeImage", new Buffer(image));
-                socket.emit("activeImage", new Buffer(image));
-            }
+        if(data.cameraViewMode && retrievedMats[data.cameraViewMode]) {
+            socket.emit(
+                "activeImage",
+                new Buffer(cv.imencode(".png", retrievedMats[data.cameraViewMode]))
+            );
         }
+
+        // if (data.showMaskedImage) {
+        //     if (retrievedMats["Ball Mask"]) {
+        //         // const image = cv.imencode(".jpg", retrievedMats["Ball Mask"]);
+        //         // const base64 = new Buffer(image).toString("base64");
+        //         // socket.emit("activeImageMask", base64);
+        //         socket.emit("activeImage", retrievedMats["Ball Mask"].toBuffer());
+        //     }
+        // } else {
+        //     if (retrievedMats["2D Image"]) {
+        //         const image = cv.imencode(".png", retrievedMats["2D Image"]);
+        //         // const base64 = new Buffer(image).toString("base64");
+        //         // socket.emit("activeImage", new Buffer(image));
+        //         socket.emit("activeImage", new Buffer(image));
+        //     }
+        // }
     });
 
     // setInterval(() => {
-    //     if (lastRetrievedImageMat) {
-    //         const image = cv.imencode(".jpg", lastRetrievedImageMat);
+    //     if (retrievedMats["2D Image"]) {
+    //         const image = cv.imencode(".jpg", retrievedMats["2D Image"]);
     //         io.emit("imageBuffer", image);
     //     }
     // }, 500);
@@ -145,7 +151,6 @@ const mog2 = new cv.BackgroundSubtractorMOG2(
     modified.detectShadows
 );
 let ballMotionMat;
-let lastTransformationMatrixMat;
 let staleTransformationMatrixCount = 0;
 const staleTransformationMatrixLimit = 10;
 
@@ -162,19 +167,21 @@ const fetchActiveSection = () => {
         let ballMat;
 
         // cv.imshowWait("image", imageMat);
-        lastRetrievedImageMat = imageMat;
+        retrievedMats["Image"] = imageMat;
 
         try {
             try {
-                lastTransformationMatrixMat = getTransformationMatrixMat(
+                const { transformationMatrixMat, maskedCornersMat } = getTransformationMatrixMat(
                     imageMat,
                     db.getCornerHSVMasks(),
                     backendResolution
                 );
+                retrievedMats["Corners Transformation Matrix"] = transformationMatrixMat;
+                retrievedMats["Corners Mask"] = maskedCornersMat;
                 staleTransformationMatrixCount = 0;
             } catch (e) {
                 staleTransformationMatrixCount++;
-                if (!lastTransformationMatrixMat) {
+                if (!retrievedMats["Corners Transformation Matrix"]) {
                     throw Error(
                         "Failed getting initial corner capture (count: " +
                             staleTransformationMatrixCount +
@@ -192,24 +199,24 @@ const fetchActiveSection = () => {
                 console.warn(e);
             }
 
-            imageMat = imageMat.warpPerspective(
-                lastTransformationMatrixMat,
+            const flatImageMat = imageMat.warpPerspective(
+                retrievedMats["Corners Transformation Matrix"],
                 new cv.Size(backendResolution.width, backendResolution.height),
                 // http://tanbakuchi.com/posts/comparison-of-openv-interpolation-algorithms/#Upsampling-comparison
                 cv.INTER_CUBIC
             );
 
-            lastRetrievedImageMat = imageMat;
+            retrievedMats["2D Image"] = flatImageMat;
 
             const hsvMasks = db.getBallHSVMasks();
             hsvMasks.forEach(hsvMask => {
                 const min = new cv.Vec3(hsvMask.min[0], hsvMask.min[1], hsvMask.min[2]);
                 const max = new cv.Vec3(hsvMask.max[0], hsvMask.max[1], hsvMask.max[2]);
                 const rangeMask = hsvFrame.inRange(min, max);
-                ballMat = imageMat.copyTo(ballMat || new cv.Mat(), rangeMask);
+                ballMat = flatImageMat.copyTo(ballMat || new cv.Mat(), rangeMask);
             });
 
-            lastRetrievedBallMat = ballMat;
+            retrievedMats["Ball Mask"] = ballMat;
             ballMotionMat = mog2.apply(ballMat);
 
             getActiveSections(db.getSections(), ballMotionMat).then(activeSections => {

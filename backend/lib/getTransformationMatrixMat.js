@@ -118,7 +118,7 @@ module.exports = (imageMat, cornerHSVMasks, targetResolution, cornerOffset = 5, 
         ];
 
         const transformationMatrixMat = cv.getPerspectiveTransform(srcPoints, dstPoints);
-        return transformationMatrixMat;
+        return { transformationMatrixMat, maskedCornersMat };
     } else {
         throw new Error("Found " + contours.length + " corners, expected 4");
     }
