@@ -4,13 +4,75 @@ const getActiveSections = require("./lib/getActiveSections");
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
 
-var app = require("express")();
-var http = require("http").Server(app);
-var server = http.listen(8080, function() {
+const path = require("path");
+const fs = require("fs");
+const app = require("express")();
+const http = require("http").Server(app);
+const server = http.listen(8080, function() {
     console.log("listening on *:8080");
 });
-var io = require("socket.io").listen(server);
-var db = require("./db");
+const io = require("socket.io").listen(server);
+const db = require("./db");
+
+// replace with path where you unzipped inception model
+const inceptionModelPath = "./tensorflow";
+// const inceptionModelPath = "./trained_ball";
+
+// const modelFile = path.resolve(inceptionModelPath, "tensorflow_inception_graph.pb");
+const modelFile = path.resolve(inceptionModelPath, "output_graph.pb");
+// const classNamesFile = path.resolve(inceptionModelPath, "imagenet_comp_graph_label_strings.txt");
+const classNamesFile = path.resolve(inceptionModelPath, "output_labels.txt");
+if (!fs.existsSync(modelFile) || !fs.existsSync(classNamesFile)) {
+    console.log("exiting: could not find inception model");
+    console.log(
+        "download the model from: https://storage.googleapis.com/download.tensorflow.org/models/inception5h.zip"
+    );
+    return;
+}
+
+// read classNames and store them in an array
+const classNames = fs
+    .readFileSync(classNamesFile)
+    .toString()
+    .split("\n");
+
+// initialize tensorflow inception model from modelFile
+// const net = cv.readNetFromTensorflow(modelFile);
+
+const classifyImg = img => {
+    // inception model works with 224 x 224 images, so we resize
+    // our input images and pad the image with white pixels to
+    // make the images have the same width and height
+    const maxImgDim = 224;
+    const white = new cv.Vec(255, 255, 255);
+    const imgResized = img.resizeToMax(maxImgDim).padToSquare(white);
+
+    // network accepts blobs as input
+    const inputBlob = cv.blobFromImage(imgResized);
+    net.setInput(inputBlob);
+
+    // forward pass input through entire network, will return
+    // classification result as 1xN Mat with confidences of each class
+    const outputBlob = net.forward();
+
+    // find all labels with a minimum confidence
+    const minConfidence = 0.05;
+    const locations = outputBlob
+        .threshold(minConfidence, 1, cv.THRESH_BINARY)
+        .convertTo(cv.CV_8U)
+        .findNonZero();
+
+    const result = locations
+        .map(pt => ({
+            confidence: parseInt(outputBlob.at(0, pt.x) * 100) / 100,
+            className: classNames[pt.x]
+        }))
+        // sort result by confidence
+        .sort((r0, r1) => r1.confidence - r0.confidence)
+        .map(res => `${res.className} (${res.confidence})`);
+
+    return result;
+};
 
 // globals
 const captureDelay = parseInt(process.env.captureDelay || 5); // 5 is prod-recommended for now
@@ -72,36 +134,13 @@ io.on("connection", function(socket) {
     });
 
     socket.on("requestImage", data => {
-        if(data.cameraViewMode && retrievedMats[data.cameraViewMode]) {
+        if (data.cameraViewMode && retrievedMats[data.cameraViewMode]) {
             socket.emit(
                 "activeImage",
                 new Buffer(cv.imencode(".png", retrievedMats[data.cameraViewMode]))
             );
         }
-
-        // if (data.showMaskedImage) {
-        //     if (retrievedMats["Ball Mask"]) {
-        //         // const image = cv.imencode(".jpg", retrievedMats["Ball Mask"]);
-        //         // const base64 = new Buffer(image).toString("base64");
-        //         // socket.emit("activeImageMask", base64);
-        //         socket.emit("activeImage", retrievedMats["Ball Mask"].toBuffer());
-        //     }
-        // } else {
-        //     if (retrievedMats["2D Image"]) {
-        //         const image = cv.imencode(".png", retrievedMats["2D Image"]);
-        //         // const base64 = new Buffer(image).toString("base64");
-        //         // socket.emit("activeImage", new Buffer(image));
-        //         socket.emit("activeImage", new Buffer(image));
-        //     }
-        // }
     });
-
-    // setInterval(() => {
-    //     if (retrievedMats["2D Image"]) {
-    //         const image = cv.imencode(".jpg", retrievedMats["2D Image"]);
-    //         io.emit("imageBuffer", image);
-    //     }
-    // }, 500);
 
     socket.on("requestCornerStatus", () => {
         if (staleTransformationMatrixCount === 0) {
@@ -217,9 +256,50 @@ const fetchActiveSection = () => {
             });
 
             retrievedMats["Ball Mask"] = ballMat;
-            ballMotionMat = mog2.apply(ballMat);
+            // ballMotionMat = mog2.apply(ballMat);
 
-            getActiveSections(db.getSections(), ballMotionMat).then(activeSections => {
+            // const args = [
+            //     // method: Define the detection method. Currently this is the only one available in OpenCV
+            //     cv.HOUGH_GRADIENT,
+            //     // dp: The inverse ratio of resolution
+            //     1,
+            //     // minDist: Minimum distance between detected centers
+            //     // retrievedMats["2D Image"].rows / 8,
+            //     5,
+            //     // param1: Upper threshold for the internal Canny edge detector
+            //     30,
+            //     // param2: Threshold for center detection.
+            //     40,
+            //     // minRadius: Minimum radius to be detected. If unknown, put zero as default.
+            //     5,
+            //     // maxRadius: Maximum radius to be detected. If unknown, put zero as default
+            //     25
+            // ];
+
+            // const forCircleMat = retrievedMats["2D Image"]
+            //     .bgrToGray()
+            //     .gaussianBlur(new cv.Size(3, 3), 2, 2);
+
+            // const circles = forCircleMat.houghCircles.apply(forCircleMat, args);
+
+            // circles.forEach(circle => {
+            //     forCircleMat.drawCircle(
+            //         new cv.Point2(circle.x, circle.y),
+            //         circle.z,
+            //         new cv.Vec3(255, 50, 0)
+            //     );
+            //     forCircleMat.drawCircle(
+            //         new cv.Point2(circle.x, circle.y),
+            //         1,
+            //         new cv.Vec3(255, 255, 0)
+            //     );
+            // });
+
+            // cv.imshowWait("", forCircleMat);
+
+            // const result = classifyImg(retrievedMats["Image"]);
+
+            getActiveSections(db.getSections(), retrievedMats["Ball Mask"].bgrToGray()).then(activeSections => {
                 // only emit something if there's a change
                 lastActiveSections = activeSections
                     .map((matchCount, activeSectionIndex) => {
@@ -247,27 +327,3 @@ const fetchActiveSection = () => {
     });
 };
 fetchActiveSection();
-
-// let mask = mog2.apply(frame1);
-// mask = mog2.apply(frame2);
-// cv.imshowWait("diff", mask);
-
-// mongo-db related
-// const MongoClient = require("mongodb").MongoClient;
-// const assert = require("assert");
-
-// // Connection URL
-// var url = "mongodb://localhost:27017/myproject";
-// // Use connect method to connect to the Server
-// MongoClient.connect(url, function(err, db) {
-//     assert.equal(null, err);
-//     console.log("Connected correctly to server");
-
-//     db.close();
-// });
-
-// only get reasonable high values, above mean
-// ret,self.acc_thresh=cv2.threshold(self.ab,self.ab.mean(),255,cv2.THRESH_TOZERO)
-
-// make a color map
-// cv.applyColorMap();
