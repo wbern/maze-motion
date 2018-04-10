@@ -13,7 +13,7 @@ var io = require("socket.io").listen(server);
 var db = require("./db");
 
 // globals
-const captureDelay = 5; // 5 is prod-recommended for now
+const captureDelay = parseInt(process.env.captureDelay || 5); // 5 is prod-recommended for now
 const failedCaptureDelay = 1000;
 const frontendResolution = { height: 480, width: 640 };
 const backendResolution = { height: 480, width: 640 };
@@ -73,17 +73,19 @@ io.on("connection", function(socket) {
     });
 
     socket.on("requestImage", data => {
-        if (lastRetrievedBallMat) {
-            if (data.showMaskedImage) {
+        if (data.showMaskedImage) {
+            if (lastRetrievedBallMat) {
                 // const image = cv.imencode(".jpg", lastRetrievedBallMat);
                 // const base64 = new Buffer(image).toString("base64");
                 // socket.emit("activeImageMask", base64);
                 socket.emit("activeImage", lastRetrievedBallMat.toBuffer());
-            } else {
-                // const image = cv.imencode(".jpg", lastRetrievedImageMat);
+            }
+        } else {
+            if (lastRetrievedImageMat) {
+                const image = cv.imencode(".png", lastRetrievedImageMat);
                 // const base64 = new Buffer(image).toString("base64");
                 // socket.emit("activeImage", new Buffer(image));
-                socket.emit("activeImage", lastRetrievedImageMat.toBuffer());
+                socket.emit("activeImage", new Buffer(image));
             }
         }
     });
@@ -111,7 +113,7 @@ io.on("connection", function(socket) {
 });
 
 // open capture from webcam
-const devicePort = 0;
+const devicePort = parseInt(process.env.devicePort || 0);
 const wCap = new cv.VideoCapture(devicePort);
 wCap.set(cv.CAP_PROP_FRAME_WIDTH, backendResolution.width);
 wCap.set(cv.CAP_PROP_FRAME_HEIGHT, backendResolution.height);
@@ -160,7 +162,7 @@ const fetchActiveSection = () => {
         let ballMat;
 
         // cv.imshowWait("image", imageMat);
-        lastRetrievedImageMat = imageMat;        
+        lastRetrievedImageMat = imageMat;
 
         try {
             try {
