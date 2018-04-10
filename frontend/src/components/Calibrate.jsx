@@ -79,7 +79,6 @@ class Calibrate extends Component {
 
         if (this.props.socket.connected) {
             setConnected();
-            this.requestInitialData();
         } else {
             setDisconnected();
         }
@@ -97,9 +96,6 @@ class Calibrate extends Component {
                 this.setState({ cornerStatus });
             }.bind(this)
         );
-
-        // image buffer
-        const loadedImageBuffer = function(imageBuffer) {};
 
         // section-related
         this.props.socket.on(
@@ -134,7 +130,7 @@ class Calibrate extends Component {
     }
 
     requestInitialData() {
-        this.props.socket.emit(messages.requestCornerHSVMasks);
+        this.emitIfConnected(messages.requestCornerHSVMasks);
     }
 
     componentWillUnmount() {
@@ -149,31 +145,37 @@ class Calibrate extends Component {
 
         setInterval(() => {
             // request things
-            if (this.props.socket.connected) {
-                if (this.isImageElementReady()) {
+            const updateImage = () => {
+                if (this.isImageElementUpdatable()) {
                     // image-specific
-                    this.props.socket.emit(messages.requestImage, {
+                    this.emitIfConnected(messages.requestImage, {
                         showMaskedImage: this.state.showMaskedImage
                     });
                 }
+            };
 
-                // general things
-                this.props.socket.emit(messages.requestActiveSections);
-                this.props.socket.emit(messages.requestCornerStatus);
-            }
+            // general things
+            this.emitIfConnected(messages.requestActiveSections);
+            this.emitIfConnected(messages.requestCornerStatus);
         }, 500);
     }
 
-    isImageElementReady() {
+    isImageElementUpdatable() {
         return this.imageElement && this.imageLoaded !== false;
+    }
+
+    emitIfConnected(...args) {
+        if (this.props.socket && this.props.socket.connected) {
+            this.props.socket.emit.apply(this.props.socket, args);
+        }
     }
 
     setImage(binaryImage) {
         const uint8Arr = new Uint8Array(binaryImage);
 
-        if (this.isImageElementReady()) {
+        if (this.isImageElementUpdatable()) {
             this.imageLoaded = false;
-            const imageUrl = URL.createObjectURL(new Blob([uint8Arr], {type: "image/png"}));
+            const imageUrl = URL.createObjectURL(new Blob([uint8Arr], { type: "image/png" }));
             // this.imageElement.src = "data:image/jpeg;base64," + blob;
             this.imageElement.src = imageUrl;
         }
@@ -306,7 +308,7 @@ class Calibrate extends Component {
                     <Row>
                         <Col xs={7}>
                             <Row>
-                                <Col xs={4} style={{ paddingLeft: 0 }}>
+                                <Col xs={4}>
                                     <FormGroup>
                                         <InputGroup>
                                             <FormControl
@@ -345,7 +347,7 @@ class Calibrate extends Component {
                                 </Col>
                                 <Col xs={6}>
                                     <Form>
-                                        <Checkbox
+                                        {/* <Checkbox
                                             value={this.state.showMaskedImage}
                                             onClick={e => {
                                                 this.setState({
@@ -354,15 +356,31 @@ class Calibrate extends Component {
                                             }}
                                         >
                                             Mask
-                                        </Checkbox>
+                                        </Checkbox> */}
+                                        <InputGroup>
+                                            <InputGroup.Addon>Frame skips</InputGroup.Addon>
+
+                                            <FormControl
+                                                type="number"
+                                                value={this.state.cameraFrameSkips || 5}
+                                                onChange={e => {
+                                                    this.setState({
+                                                        cameraFrameSkips: e.target.value
+                                                    });
+                                                }}
+                                            />
+                                        </InputGroup>
                                     </Form>
                                 </Col>
                             </Row>
-                            <Row>
+                            <Row className="imageWrapper">
                                 <div className="imageContainer">
                                     <img
                                         ref={this.saveImageRef.bind(this)}
-                                        onLoad={(e) => {this.imageLoaded = true; URL.revokeObjectURL(e.target.src);}}
+                                        onLoad={e => {
+                                            this.imageLoaded = true;
+                                            URL.revokeObjectURL(e.target.src);
+                                        }}
                                         className="image"
                                     />
                                     <div className="grid">
@@ -420,19 +438,21 @@ class Calibrate extends Component {
                         </Col>
                     </Row>
                     <Row>
-                        <h1 className="text-left">Color Calibration</h1>
-                        <Col xs={5}>
-                            <ColorSelector
-                                onChange={ranges =>
-                                    this.saveHsvMaskRanges("cornerHSVMasks", ranges)
-                                }
-                                defaultItems={this.state.cornerHSVMasks}
-                                textLabel="Corner Color Ranges"
-                            />
-                        </Col>
-                        {/* <Col xs={5} xsOffset={2}>
+                        <Col xs={12}>
+                            <h1 className="text-left">Color Calibration</h1>
+                            <Col xs={5}>
+                                <ColorSelector
+                                    onChange={ranges =>
+                                        this.saveHsvMaskRanges("cornerHSVMasks", ranges)
+                                    }
+                                    defaultItems={this.state.cornerHSVMasks}
+                                    textLabel="Corner Color Ranges"
+                                />
+                            </Col>
+                            {/* <Col xs={5} xsOffset={2}>
                             <ColorSelector textLabel="Ball Color Ranges" />
                         </Col> */}
+                        </Col>
                     </Row>
                 </Grid>
             </div>

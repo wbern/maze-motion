@@ -36,7 +36,15 @@
     box-sizing: border-box;
 }
 
+.imageWrapper {
+    /* background-color: rgba(0,0,0,0.01); */
+    display: flex;
+    justify-content: center;
+    align-content: center;
+}
+
 .imageContainer {
+    background-color: #333;
     user-select: none;
     display: flex;
     width: 640px;
