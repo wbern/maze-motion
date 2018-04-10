@@ -15,6 +15,7 @@ export class ColorSelectorItem extends React.Component {
 
     onClose(data) {
         const hsv = convert.hex.hsv(data.color);
+        this.setState({currentColor: hsv});
         if (this.props.onChange) {
             this.props.onChange(hsv);
         }
@@ -43,7 +44,7 @@ export class ColorSelectorItem extends React.Component {
                                 // onChange={changeHandler}
                             />
                         </InputGroup.Addon>
-                        <FormControl disabled type="text" />
+                        <FormControl disabled type="text" value={(this.state.currentColor || this.props.defaultColor).join(", ")} />
                     </InputGroup>
                 </Col>
             </Form>

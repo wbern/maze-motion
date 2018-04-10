@@ -36,6 +36,14 @@
     box-sizing: border-box;
 }
 
+.specificSizedInputGroup {
+    height: 40px;
+}
+
+.specificSizedInputGroupItems {
+    height: 100%;
+}
+
 .imageWrapper {
     /* background-color: rgba(0,0,0,0.01); */
     display: flex;

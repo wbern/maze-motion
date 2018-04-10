@@ -52,7 +52,8 @@ class Calibrate extends Component {
 
         this.state = {
             lastActiveSections: null,
-            sectionIndexInputValue: 1
+            sectionIndexInputValue: 1,
+            cameraFrameSkips: 1
         };
 
         this.blockHover = this.blockHover.bind(this);
@@ -143,6 +144,7 @@ class Calibrate extends Component {
 
         this.subscribe();
 
+        const updateInterval = 500;
         setInterval(() => {
             // request things
             const updateImage = () => {
@@ -154,10 +156,12 @@ class Calibrate extends Component {
                 }
             };
 
+            setTimeout(updateImage, updateInterval * (this.state.cameraFrameSkips || 0) + 1);
+
             // general things
             this.emitIfConnected(messages.requestActiveSections);
             this.emitIfConnected(messages.requestCornerStatus);
-        }, 500);
+        }, updateInterval);
     }
 
     isImageElementUpdatable() {
@@ -176,8 +180,11 @@ class Calibrate extends Component {
         if (this.isImageElementUpdatable()) {
             this.imageLoaded = false;
             const imageUrl = URL.createObjectURL(new Blob([uint8Arr], { type: "image/png" }));
-            // this.imageElement.src = "data:image/jpeg;base64," + blob;
-            this.imageElement.src = imageUrl;
+            const newImage = new Image();
+            newImage.onload = function() {
+                this.imageElement.src = newImage.src;
+            }.bind(this);
+            newImage.src = imageUrl;
         }
     }
 
@@ -297,7 +304,7 @@ class Calibrate extends Component {
 
     saveHsvMaskRanges(maskName, ranges) {
         if (maskName === "cornerHSVMasks") {
-            this.props.socket.emit(messages.saveCornerHSVMasks, ranges);
+            this.emitIfConnected(messages.saveCornerHSVMasks, ranges);
         }
     }
 
@@ -308,11 +315,18 @@ class Calibrate extends Component {
                     <Row>
                         <Col xs={7}>
                             <Row>
-                                <Col xs={4}>
+                                <Col xs={4} xsOffset={1}>
                                     <FormGroup>
-                                        <InputGroup>
+                                        <InputGroup className="specificSizedInputGroup">
+                                            <InputGroup.Addon
+                                                className="specificSizedInputGroupItems"
+                                                style={{ lineHeight: 0 }}
+                                            >
+                                                Section
+                                            </InputGroup.Addon>
                                             <FormControl
                                                 type="number"
+                                                className="specificSizedInputGroupItems"
                                                 name="sectionIndex"
                                                 onChange={this.sectionIndexChange}
                                                 max="61"
@@ -321,6 +335,7 @@ class Calibrate extends Component {
                                             />
                                             <DropdownButton
                                                 componentClass={InputGroup.Button}
+                                                className="specificSizedInputGroupItems"
                                                 id="input-dropdown-addon"
                                                 title="Action"
                                             >
@@ -336,16 +351,23 @@ class Calibrate extends Component {
                                 </Col>
                                 <Col xs={2}>
                                     <Form>
-                                        <Button
-                                            type="button"
-                                            onClick={this.onGridClearClick}
-                                            value="Clear"
+                                        <InputGroup
+                                            className="specificSizedInputGroup"
+                                            style={{ width: "100%" }}
                                         >
-                                            Clear
-                                        </Button>
+                                            <Button
+                                                type="button"
+                                                className="specificSizedInputGroupItems"
+                                                style={{ width: "100%" }}
+                                                onClick={this.onGridClearClick}
+                                                value="Clear"
+                                            >
+                                                Clear
+                                            </Button>
+                                        </InputGroup>
                                     </Form>
                                 </Col>
-                                <Col xs={6}>
+                                <Col xs={4}>
                                     <Form>
                                         {/* <Checkbox
                                             value={this.state.showMaskedImage}
@@ -357,15 +379,23 @@ class Calibrate extends Component {
                                         >
                                             Mask
                                         </Checkbox> */}
-                                        <InputGroup>
-                                            <InputGroup.Addon>Frame skips</InputGroup.Addon>
+                                        <InputGroup className="specificSizedInputGroup">
+                                            <InputGroup.Addon className="specificSizedInputGroupItems">
+                                                Frame skips
+                                            </InputGroup.Addon>
 
                                             <FormControl
                                                 type="number"
-                                                value={this.state.cameraFrameSkips || 5}
+                                                className="specificSizedInputGroupItems"
+                                                value={this.state.cameraFrameSkips}
+                                                min="0"
+                                                max="100"
                                                 onChange={e => {
                                                     this.setState({
-                                                        cameraFrameSkips: e.target.value
+                                                        cameraFrameSkips: Math.min(
+                                                            Math.max(e.target.value, 0),
+                                                            100
+                                                        )
                                                     });
                                                 }}
                                             />
