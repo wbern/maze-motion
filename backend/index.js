@@ -14,65 +14,65 @@ const server = http.listen(8080, function() {
 const io = require("socket.io").listen(server);
 const db = require("./db");
 
-// replace with path where you unzipped inception model
-const inceptionModelPath = "./tensorflow";
-// const inceptionModelPath = "./trained_ball";
+// // replace with path where you unzipped inception model
+// const inceptionModelPath = "./tensorflow";
+// // const inceptionModelPath = "./trained_ball";
 
-// const modelFile = path.resolve(inceptionModelPath, "tensorflow_inception_graph.pb");
-const modelFile = path.resolve(inceptionModelPath, "output_graph.pb");
-// const classNamesFile = path.resolve(inceptionModelPath, "imagenet_comp_graph_label_strings.txt");
-const classNamesFile = path.resolve(inceptionModelPath, "output_labels.txt");
-if (!fs.existsSync(modelFile) || !fs.existsSync(classNamesFile)) {
-    console.log("exiting: could not find inception model");
-    console.log(
-        "download the model from: https://storage.googleapis.com/download.tensorflow.org/models/inception5h.zip"
-    );
-    return;
-}
+// // const modelFile = path.resolve(inceptionModelPath, "tensorflow_inception_graph.pb");
+// const modelFile = path.resolve(inceptionModelPath, "output_graph.pb");
+// // const classNamesFile = path.resolve(inceptionModelPath, "imagenet_comp_graph_label_strings.txt");
+// const classNamesFile = path.resolve(inceptionModelPath, "output_labels.txt");
+// if (!fs.existsSync(modelFile) || !fs.existsSync(classNamesFile)) {
+//     console.log("exiting: could not find inception model");
+//     console.log(
+//         "download the model from: https://storage.googleapis.com/download.tensorflow.org/models/inception5h.zip"
+//     );
+//     return;
+// }
 
-// read classNames and store them in an array
-const classNames = fs
-    .readFileSync(classNamesFile)
-    .toString()
-    .split("\n");
+// // read classNames and store them in an array
+// const classNames = fs
+//     .readFileSync(classNamesFile)
+//     .toString()
+//     .split("\n");
 
-// initialize tensorflow inception model from modelFile
-// const net = cv.readNetFromTensorflow(modelFile);
+// // initialize tensorflow inception model from modelFile
+// // const net = cv.readNetFromTensorflow(modelFile);
 
-const classifyImg = img => {
-    // inception model works with 224 x 224 images, so we resize
-    // our input images and pad the image with white pixels to
-    // make the images have the same width and height
-    const maxImgDim = 224;
-    const white = new cv.Vec(255, 255, 255);
-    const imgResized = img.resizeToMax(maxImgDim).padToSquare(white);
+// const classifyImg = img => {
+//     // inception model works with 224 x 224 images, so we resize
+//     // our input images and pad the image with white pixels to
+//     // make the images have the same width and height
+//     const maxImgDim = 224;
+//     const white = new cv.Vec(255, 255, 255);
+//     const imgResized = img.resizeToMax(maxImgDim).padToSquare(white);
 
-    // network accepts blobs as input
-    const inputBlob = cv.blobFromImage(imgResized);
-    net.setInput(inputBlob);
+//     // network accepts blobs as input
+//     const inputBlob = cv.blobFromImage(imgResized);
+//     net.setInput(inputBlob);
 
-    // forward pass input through entire network, will return
-    // classification result as 1xN Mat with confidences of each class
-    const outputBlob = net.forward();
+//     // forward pass input through entire network, will return
+//     // classification result as 1xN Mat with confidences of each class
+//     const outputBlob = net.forward();
 
-    // find all labels with a minimum confidence
-    const minConfidence = 0.05;
-    const locations = outputBlob
-        .threshold(minConfidence, 1, cv.THRESH_BINARY)
-        .convertTo(cv.CV_8U)
-        .findNonZero();
+//     // find all labels with a minimum confidence
+//     const minConfidence = 0.05;
+//     const locations = outputBlob
+//         .threshold(minConfidence, 1, cv.THRESH_BINARY)
+//         .convertTo(cv.CV_8U)
+//         .findNonZero();
 
-    const result = locations
-        .map(pt => ({
-            confidence: parseInt(outputBlob.at(0, pt.x) * 100) / 100,
-            className: classNames[pt.x]
-        }))
-        // sort result by confidence
-        .sort((r0, r1) => r1.confidence - r0.confidence)
-        .map(res => `${res.className} (${res.confidence})`);
+//     const result = locations
+//         .map(pt => ({
+//             confidence: parseInt(outputBlob.at(0, pt.x) * 100) / 100,
+//             className: classNames[pt.x]
+//         }))
+//         // sort result by confidence
+//         .sort((r0, r1) => r1.confidence - r0.confidence)
+//         .map(res => `${res.className} (${res.confidence})`);
 
-    return result;
-};
+//     return result;
+// };
 
 // globals
 const captureDelay = parseInt(process.env.captureDelay || 5); // 5 is prod-recommended for now
@@ -245,6 +245,118 @@ const fetchActiveSection = () => {
                 cv.INTER_CUBIC
             );
 
+            // now try to normalize the flat image to have as many circular holes as possible
+            const args = [
+                // method: Define the detection method. Currently this is the only one available in OpenCV
+                cv.HOUGH_GRADIENT,
+                // dp: The inverse ratio of resolution
+                1,
+                // minDist: Minimum distance between detected centers
+                // retrievedMats["2D Image"].rows / 8,
+                5,
+                // param1: Upper threshold for the internal Canny edge detector
+                30,
+                // param2: Threshold for center detection.
+                17,
+                // minRadius: Minimum radius to be detected. If unknown, put zero as default.
+                8,
+                // maxRadius: Maximum radius to be detected. If unknown, put zero as default
+                15
+            ];
+
+            // mark a range of grays as completely white, onto the forCirclesMat
+            let forCirclesMat = flatImageMat.bgrToGray();
+            let grayDetectionMat = forCirclesMat.gaussianBlur(new cv.Size(5, 5), 2, 2);
+            grayDetectionMat = grayDetectionMat.inRange(40, 105);
+            forCirclesMat = grayDetectionMat.copyTo(
+                forCirclesMat, // background
+                grayDetectionMat // foreground, filtered by mask
+            );
+            // forCirclesMat = forCirclesMat.erode(new cv.Mat(Array(4).fill([255, 255, 255]), cv.CV_8U))
+            // cv.imshowWait("", forCirclesMat);
+
+            const yScale = 1;
+            let xScale = 1;
+            let highestFoundCircles = [];
+            let foundCircles = [];
+            let grayestCircle = { mat: undefined, matches: 0 };
+
+            while (xScale > 0.1) {
+                const scaledForCirclesMat = forCirclesMat.resize(
+                    parseInt(backendResolution.height * yScale),
+                    parseInt(backendResolution.width * xScale)
+                );
+                foundCircles = forCirclesMat.houghCircles.apply(scaledForCirclesMat, args);
+
+                if (foundCircles.length > highestFoundCircles.length) {
+                    highestFoundCircles = [...foundCircles];
+                }
+
+                xScale -= 0.01;
+
+                // iterate each circle
+                // check if it contains a lot of non-black/dark
+                // record it as "grayestCircle".
+
+                // visual aid
+                foundCircles.forEach(circle => {
+                    const circleMask = new cv.Mat(
+                        scaledForCirclesMat.rows,
+                        scaledForCirclesMat.cols,
+                        cv.CV_8U
+                    );
+                    circleMask.drawRectangle(
+                        new cv.Point2(0, 0),
+                        new cv.Point2(scaledForCirclesMat.sizes[1], scaledForCirclesMat.sizes[0]),
+                        new cv.Vec3(0, 0, 0),
+                        -1
+                    );
+                    circleMask.drawCircle(
+                        new cv.Point2(circle.x, circle.y),
+                        parseInt(circle.z * 0.7),
+                        new cv.Vec3(255, 255, 255),
+                        -1000
+                    );
+                    // cv.imshowWait("", circleMask);
+                    const singleCircleMat = scaledForCirclesMat.copyTo(
+                        new cv.Mat(scaledForCirclesMat.rows, scaledForCirclesMat.cols),
+                        circleMask
+                    );
+
+                    // it's gray-scale
+                    const minRange = 255;
+                    const maxRange = 255;
+                    const singleCircleColorRangeMatch = singleCircleMat.inRange(minRange, maxRange);
+                    // cv.imshowWait("singleCircleColorRangeMatch", singleCircleColorRangeMatch);
+
+                    let matches = singleCircleColorRangeMatch.countNonZero();
+
+                    console.log(matches);
+
+                    if(matches > grayestCircle.matches) {
+                        grayestCircle.matches = matches;
+                        grayestCircle.mat = singleCircleMat;
+                        // cv.imshowWait("circleMat", singleCircleMat);
+                    }
+
+                    scaledForCirclesMat.drawCircle(
+                        new cv.Point2(circle.x, circle.y),
+                        circle.z * 1.1,
+                        new cv.Vec3(255, 50, 0)
+                    );
+                    scaledForCirclesMat.drawCircle(
+                        new cv.Point2(circle.x, circle.y),
+                        1,
+                        new cv.Vec3(255, 255, 0)
+                    );
+                });
+
+                let aMat = grayestCircle.mat.copyTo(scaledForCirclesMat);
+                cv.imshowWait("aMat", aMat);
+                // cv.imshowWait("scaledForCirclesMat", scaledForCirclesMat);
+                // cv.imshowWait("grayestCircle", grayestCircle.mat);
+            }
+
             retrievedMats["2D Image"] = flatImageMat;
 
             const hsvMasks = db.getBallHSVMasks();
@@ -258,68 +370,33 @@ const fetchActiveSection = () => {
             retrievedMats["Ball Mask"] = ballMat;
             // ballMotionMat = mog2.apply(ballMat);
 
-            // const args = [
-            //     // method: Define the detection method. Currently this is the only one available in OpenCV
-            //     cv.HOUGH_GRADIENT,
-            //     // dp: The inverse ratio of resolution
-            //     1,
-            //     // minDist: Minimum distance between detected centers
-            //     // retrievedMats["2D Image"].rows / 8,
-            //     5,
-            //     // param1: Upper threshold for the internal Canny edge detector
-            //     30,
-            //     // param2: Threshold for center detection.
-            //     40,
-            //     // minRadius: Minimum radius to be detected. If unknown, put zero as default.
-            //     5,
-            //     // maxRadius: Maximum radius to be detected. If unknown, put zero as default
-            //     25
-            // ];
-
-            // const forCircleMat = retrievedMats["2D Image"]
-            //     .bgrToGray()
-            //     .gaussianBlur(new cv.Size(3, 3), 2, 2);
-
-            // const circles = forCircleMat.houghCircles.apply(forCircleMat, args);
-
-            // circles.forEach(circle => {
-            //     forCircleMat.drawCircle(
-            //         new cv.Point2(circle.x, circle.y),
-            //         circle.z,
-            //         new cv.Vec3(255, 50, 0)
-            //     );
-            //     forCircleMat.drawCircle(
-            //         new cv.Point2(circle.x, circle.y),
-            //         1,
-            //         new cv.Vec3(255, 255, 0)
-            //     );
-            // });
-
             // cv.imshowWait("", forCircleMat);
 
             // const result = classifyImg(retrievedMats["Image"]);
 
-            getActiveSections(db.getSections(), retrievedMats["Ball Mask"].bgrToGray()).then(activeSections => {
-                // only emit something if there's a change
-                lastActiveSections = activeSections
-                    .map((matchCount, activeSectionIndex) => {
-                        if (matchCount !== undefined) {
-                            const section = db.getSection(activeSectionIndex);
-                            const zones = adjustZonesResolution(
-                                section.zones,
-                                backendResolution,
-                                frontendResolution
-                            );
+            getActiveSections(db.getSections(), retrievedMats["Ball Mask"].bgrToGray()).then(
+                activeSections => {
+                    // only emit something if there's a change
+                    lastActiveSections = activeSections
+                        .map((matchCount, activeSectionIndex) => {
+                            if (matchCount !== undefined) {
+                                const section = db.getSection(activeSectionIndex);
+                                const zones = adjustZonesResolution(
+                                    section.zones,
+                                    backendResolution,
+                                    frontendResolution
+                                );
 
-                            return { index: activeSectionIndex, zones };
-                        }
-                        return null;
-                    })
-                    .filter(s => s !== null);
-                capturesDoneWithinInterval++;
-                // console.log(JSON.stringify(lastActiveSections.map(s => s.index)));
-                setTimeout(fetchActiveSection, captureDelay);
-            });
+                                return { index: activeSectionIndex, zones };
+                            }
+                            return null;
+                        })
+                        .filter(s => s !== null);
+                    capturesDoneWithinInterval++;
+                    // console.log(JSON.stringify(lastActiveSections.map(s => s.index)));
+                    setTimeout(fetchActiveSection, captureDelay);
+                }
+            );
         } catch (e) {
             console.warn(e);
             setTimeout(fetchActiveSection, failedCaptureDelay);
