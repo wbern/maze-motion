@@ -259,40 +259,39 @@ const fetchActiveSection = () => {
                 // param2: Threshold for center detection.
                 17,
                 // minRadius: Minimum radius to be detected. If unknown, put zero as default.
-                8,
+                9,
                 // maxRadius: Maximum radius to be detected. If unknown, put zero as default
                 15
             ];
 
             // mark a range of grays as completely white, onto the forCirclesMat
-            let forCirclesMat = flatImageMat.bgrToGray();
-            let grayDetectionMat = forCirclesMat.gaussianBlur(new cv.Size(5, 5), 2, 2);
-            grayDetectionMat = grayDetectionMat.inRange(40, 105);
-            forCirclesMat = grayDetectionMat.copyTo(
-                forCirclesMat, // background
-                grayDetectionMat // foreground, filtered by mask
-            );
-            // forCirclesMat = forCirclesMat.erode(new cv.Mat(Array(4).fill([255, 255, 255]), cv.CV_8U))
-            // cv.imshowWait("", forCirclesMat);
+            const circlesMat = flatImageMat
+                // houghCircles requires grayscale
+                .cvtColor(cv.COLOR_BGR2GRAY)
+                // remove all existing pure-white colorings in the image
+                .threshold(254, 255, cv.THRESH_TRUNC);
+
+            // create mat with relevant grays as white
+            let circlesMask = flatImageMat
+                .cvtColor(cv.COLOR_BGR2HSV_FULL)
+                .gaussianBlur(new cv.Size(3, 3), 2, 2);
+            circlesMask = circlesMask.inRange(new cv.Vec3(0, 0, 35), new cv.Vec3(255, 90, 145));
+
+            // cv.imshowWait("circlesMask", circlesMask);
 
             const yScale = 1;
             let xScale = 1;
-            let highestFoundCircles = [];
-            let foundCircles = [];
-            let grayestCircle = { mat: undefined, matches: 0 };
+            const trimCircleEdgePercentage = 0.1;
+            const grayestCircle = { circle: undefined, mat: undefined, matchPercentage: 0 };
 
-            while (xScale > 0.1) {
-                const scaledForCirclesMat = forCirclesMat.resize(
+            while (xScale > 0.75) {
+                xScale -= 0.01;
+
+                const scaledCirclesMat = circlesMat.resize(
                     parseInt(backendResolution.height * yScale),
                     parseInt(backendResolution.width * xScale)
                 );
-                foundCircles = forCirclesMat.houghCircles.apply(scaledForCirclesMat, args);
-
-                if (foundCircles.length > highestFoundCircles.length) {
-                    highestFoundCircles = [...foundCircles];
-                }
-
-                xScale -= 0.01;
+                const foundCircles = circlesMat.houghCircles.apply(scaledCirclesMat, args);
 
                 // iterate each circle
                 // check if it contains a lot of non-black/dark
@@ -300,62 +299,144 @@ const fetchActiveSection = () => {
 
                 // visual aid
                 foundCircles.forEach(circle => {
+                    // make a mask mat with same size as the old one
                     const circleMask = new cv.Mat(
-                        scaledForCirclesMat.rows,
-                        scaledForCirclesMat.cols,
+                        scaledCirclesMat.rows,
+                        scaledCirclesMat.cols,
                         cv.CV_8U
                     );
+                    // make sure it's pitch black everywhere
                     circleMask.drawRectangle(
                         new cv.Point2(0, 0),
-                        new cv.Point2(scaledForCirclesMat.sizes[1], scaledForCirclesMat.sizes[0]),
+                        new cv.Point2(scaledCirclesMat.sizes[1], scaledCirclesMat.sizes[0]),
                         new cv.Vec3(0, 0, 0),
                         -1
                     );
+                    // draw a white circle on the mask where the current circle is, with variable offset
                     circleMask.drawCircle(
                         new cv.Point2(circle.x, circle.y),
-                        parseInt(circle.z * 0.7),
+                        parseInt(circle.z * (1 - trimCircleEdgePercentage)),
                         new cv.Vec3(255, 255, 255),
                         -1000
                     );
-                    // cv.imshowWait("", circleMask);
-                    const singleCircleMat = scaledForCirclesMat.copyTo(
-                        new cv.Mat(scaledForCirclesMat.rows, scaledForCirclesMat.cols),
+
+                    // create a circle background with a near-perfect white, which won't be taken into
+                    // account when matching amount of ball-perceived grayness
+                    const singleCircleMatBackground = new cv.Mat(
+                        scaledCirclesMat.rows,
+                        scaledCirclesMat.cols,
+                        cv.CV_8U
+                    );
+                    singleCircleMatBackground.drawRectangle(
+                        new cv.Point2(0, 0),
+                        new cv.Point2(scaledCirclesMat.sizes[1], scaledCirclesMat.sizes[0]),
+                        new cv.Vec3(254, 254, 254),
+                        -1
+                    );
+
+                    // get a mat of only the current circle
+                    let singleCircleWithRelevantWhitesMat = circlesMask.resize(
+                        parseInt(backendResolution.height * yScale),
+                        parseInt(backendResolution.width * xScale)
+                    );
+
+                    singleCircleWithRelevantWhitesMat = singleCircleWithRelevantWhitesMat.copyTo(
+                        singleCircleMatBackground,
                         circleMask
                     );
 
-                    // it's gray-scale
-                    const minRange = 255;
-                    const maxRange = 255;
-                    const singleCircleColorRangeMatch = singleCircleMat.inRange(minRange, maxRange);
-                    // cv.imshowWait("singleCircleColorRangeMatch", singleCircleColorRangeMatch);
+                    // cv.imshowWait("singleCircleWithRelevantWhitesMat", singleCircleWithRelevantWhitesMat);
 
-                    let matches = singleCircleColorRangeMatch.countNonZero();
+                    // cv.imshowWait("singleCircleWithRelevantWhitesMat", singleCircleWithRelevantWhitesMat);
 
-                    console.log(matches);
+                    // get amount of matching grayness
+                    // const match
+                    const matchCoords = singleCircleWithRelevantWhitesMat
+                        .inRange(255, 255)
+                        .findNonZero();
 
-                    if(matches > grayestCircle.matches) {
-                        grayestCircle.matches = matches;
-                        grayestCircle.mat = singleCircleMat;
-                        // cv.imshowWait("circleMat", singleCircleMat);
+                    const kernel = new cv.Mat([[0, 1], [0, 0]], cv.CV_8U);
+                    const hitMissMat = singleCircleWithRelevantWhitesMat.morphologyEx(kernel, cv.MORPH_HITMISS);
+                    // cv.imshowWait("hitMissMat", hitMissMat);
+
+                    const matches = matchCoords.length;
+                    // get amount of non-matching grayness, but not the blackness outside the circle
+                    const nonMatchCoords = singleCircleWithRelevantWhitesMat
+                        .inRange(0, 253)
+                        .findNonZero();
+                    const nonMatches = nonMatchCoords.length;
+                    // get percent of circle that has matching grayness
+                    const matchPercentage = matches / (matches + nonMatches);
+
+                    // does this circle have more grayness than any previous circle?
+                    if (matchPercentage > grayestCircle.matchPercentage) {
+                        // save references to this circle's data
+                        grayestCircle.matchPercentage = matchPercentage;
+                        grayestCircle.hitMissMat = hitMissMat;
+                        grayestCircle.moments = singleCircleWithRelevantWhitesMat.moments();
+                        grayestCircle.roundedMatchPercentage =
+                            Math.round(matchPercentage * 100) / 100;
+                        grayestCircle.mat = singleCircleWithRelevantWhitesMat;
+                        // restore the x to the original image x axis scale before storing the reference
+                        grayestCircle.circle = {
+                            x: circle.x / xScale,
+                            y: circle.y,
+                            z: circle.z / (1 - trimCircleEdgePercentage)
+                        };
                     }
-
-                    scaledForCirclesMat.drawCircle(
-                        new cv.Point2(circle.x, circle.y),
-                        circle.z * 1.1,
-                        new cv.Vec3(255, 50, 0)
-                    );
-                    scaledForCirclesMat.drawCircle(
-                        new cv.Point2(circle.x, circle.y),
-                        1,
-                        new cv.Vec3(255, 255, 0)
-                    );
                 });
 
-                let aMat = grayestCircle.mat.copyTo(scaledForCirclesMat);
-                cv.imshowWait("aMat", aMat);
-                // cv.imshowWait("scaledForCirclesMat", scaledForCirclesMat);
-                // cv.imshowWait("grayestCircle", grayestCircle.mat);
+                // visual aid
+                // const visualAid = scaledCirclesMat.cvtColor(cv.COLOR_GRAY2BGR);
+                // const drawCircle = (c) => {
+                //     visualAid.drawCircle(
+                //         new cv.Point2(c.x, c.y),
+                //         c.z * 1,
+                //         new cv.Vec3(255, 255, 0),
+                //         1
+                //     );
+                //     visualAid.drawCircle(
+                //         new cv.Point2(c.x, c.y),
+                //         1,
+                //         new cv.Vec3(255, 255, 0),
+                //         2
+                //     );
+                // };
+                // drawCircle(grayestCircle.circle);
+
+                // visualAid.drawCircle(
+                //     new cv.Point2(grayestCircle.circle.x, grayestCircle.circle.y),
+                //     grayestCircle.circle.z * 1,
+                //     new cv.Vec3(255, 255, 0),
+                //     1
+                // );
+                // visualAid.drawCircle(
+                //     new cv.Point2(grayestCircle.circle.x, grayestCircle.circle.y),
+                //     1,
+                //     new cv.Vec3(255, 255, 0),
+                //     2
+                // );
+
+                // cv.imshowWait("visualAid", visualAid);
             }
+
+            flatImageMat.drawCircle(
+                new cv.Point2(grayestCircle.circle.x, grayestCircle.circle.y),
+                grayestCircle.circle.z * 1,
+                new cv.Vec3(255, 0, 0),
+                2
+            );
+
+            console.log(
+                "Ball identification grayness match percentage: " +
+                    grayestCircle.roundedMatchPercentage * 100 +
+                    "% (moments: " +
+                    Object.keys(grayestCircle.moments).length +
+                    ")"
+            );
+            cv.imshowWait("flatImageMat", flatImageMat);
+            cv.imshowWait("hitMissMat", grayestCircle.hitMissMat);
+            // cv.imshowWait("grayestCircle.mat", grayestCircle.mat);
 
             retrievedMats["2D Image"] = flatImageMat;
 
