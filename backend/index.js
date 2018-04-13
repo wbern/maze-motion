@@ -3,7 +3,7 @@ const getTransformationMatrixMat = require("./lib/getTransformationMatrixMat");
 const getActiveSections = require("./lib/getActiveSections");
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
-const getBallCords = require("./lib/getBallCoords");
+const getBallCoords = require("./lib/getBallCoords");
 
 const app = require("express")();
 const http = require("http").Server(app);
@@ -169,8 +169,27 @@ const fetchActiveSection = () => {
             flatImageMat = flatImageMat
                 .resize(backendResolution.height, backendResolution.width * 1.3)
                 .getRegion(new cv.Rect(0, 0, backendResolution.width, backendResolution.height));
-                
-            const grayestCircle = getBallCords(flatImageMat);
+
+            const grayestCircle = getBallCoords(flatImageMat, {
+                trimCircleEdgePercentage: 0.2,
+                minPaletteCount: 20,
+                maxPaletteCount: 999,
+                maxPercentage: 0.85,
+                minPercentage: 0.1,
+                houghCircleSettings: {
+                    minDist: 5,
+                    cannyUpperThreshold: 30,
+                    centerDetectionThreshold: 17,
+                    minRadius: 9,
+                    maxRadius: 13
+                },
+                blurAmount: 1,
+                blurKernel: 2,
+                ballHSVMask: {
+                    min: new cv.Vec3(0, 0, 95),
+                    max: new cv.Vec3(255, 80, 125)
+                }
+            });
             if (grayestCircle.circle) {
                 flatImageMat.drawCircle(
                     new cv.Point2(grayestCircle.circle.x, grayestCircle.circle.y),
