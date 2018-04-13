@@ -6,10 +6,10 @@ const getCorners = (contours, cornerOffset) => {
     const centeredValue = (axisValue, sizeValue) => axisValue + sizeValue / 2;
 
     const highestTwoXBounds = bounds
-        .sort((a, b) => centeredValue(a.x, a.width) > centeredValue(b.x, b.width))
+        .sort((a, b) => centeredValue(a.x, a.width) - centeredValue(b.x, b.width))
         .slice(-2);
     const lowestTwoXBounds = bounds
-        .sort((a, b) => centeredValue(a.x, a.width) < centeredValue(b.x, b.width))
+        .sort((a, b) => centeredValue(b.x, b.width) - centeredValue(a.x, a.width))
         .slice(-2);
 
     // of the two right-most bounds, which one is upper and lower?
@@ -51,7 +51,14 @@ const getCorners = (contours, cornerOffset) => {
     ];
 };
 
-module.exports = (imageMat, cornerHSVMasks, targetResolution, cornerOffset = 5, erodePixels = 0) => {
+module.exports = (
+    imageMat,
+    cornerHSVMasks,
+    targetResolution,
+    cornerOffset = 5,
+    erodePixels = 0,
+    rotations = 3
+) => {
     const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
     let maskedCornersMat;
 
@@ -86,7 +93,7 @@ module.exports = (imageMat, cornerHSVMasks, targetResolution, cornerOffset = 5, 
         };
     };
 
-    // draw circles around each contour to absorb smaller neighbouring contours in broken scans
+    // draw rectangles around each contour to absorb smaller neighbouring contours in broken scans
     contours.forEach(c => {
         const points = getContourDimensions(c, 2);
         maskedCornersMat.drawRectangle(
@@ -101,21 +108,26 @@ module.exports = (imageMat, cornerHSVMasks, targetResolution, cornerOffset = 5, 
 
     if (contours.length === 4) {
         // we have the right amount of contours for each corner, continue
-
         const srcPoints = getCorners(contours, cornerOffset);
 
-        const sideMargin = (targetResolution.width - targetResolution.height) / 2;
+        const minRes = Math.min(targetResolution.height, targetResolution.width);
 
-        const dstPoints = [
-            // top-left
-            new cv.Point(0 + sideMargin, 0),
-            // top-right
-            new cv.Point(targetResolution.width - sideMargin, 0),
-            // bottom-right
-            new cv.Point(targetResolution.width - sideMargin, targetResolution.height),
-            // bottom-left
-            new cv.Point(0 + sideMargin, targetResolution.height)
-        ];
+        // get the ratio between x and y
+        const width = minRes;
+        const height = minRes;
+
+        // make the destination points, with scaling
+        const topLeft = new cv.Point(0, 0);
+        const topRight = new cv.Point(width, 0);
+        const bottomRight = new cv.Point(width, height);
+        const bottomLeft = new cv.Point(0, height);
+
+        const dstPoints = [topLeft, topRight, bottomRight, bottomLeft];
+
+        // do rotations
+        for (let i = 0; i < rotations; i++) {
+            dstPoints.unshift(dstPoints.pop());
+        }
 
         const transformationMatrixMat = cv.getPerspectiveTransform(srcPoints, dstPoints);
         return { transformationMatrixMat, maskedCornersMat };

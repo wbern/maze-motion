@@ -4,8 +4,6 @@ const getActiveSections = require("./lib/getActiveSections");
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
 
-const path = require("path");
-const fs = require("fs");
 const app = require("express")();
 const http = require("http").Server(app);
 const server = http.listen(8080, function() {
@@ -13,66 +11,6 @@ const server = http.listen(8080, function() {
 });
 const io = require("socket.io").listen(server);
 const db = require("./db");
-
-// // replace with path where you unzipped inception model
-// const inceptionModelPath = "./tensorflow";
-// // const inceptionModelPath = "./trained_ball";
-
-// // const modelFile = path.resolve(inceptionModelPath, "tensorflow_inception_graph.pb");
-// const modelFile = path.resolve(inceptionModelPath, "output_graph.pb");
-// // const classNamesFile = path.resolve(inceptionModelPath, "imagenet_comp_graph_label_strings.txt");
-// const classNamesFile = path.resolve(inceptionModelPath, "output_labels.txt");
-// if (!fs.existsSync(modelFile) || !fs.existsSync(classNamesFile)) {
-//     console.log("exiting: could not find inception model");
-//     console.log(
-//         "download the model from: https://storage.googleapis.com/download.tensorflow.org/models/inception5h.zip"
-//     );
-//     return;
-// }
-
-// // read classNames and store them in an array
-// const classNames = fs
-//     .readFileSync(classNamesFile)
-//     .toString()
-//     .split("\n");
-
-// // initialize tensorflow inception model from modelFile
-// // const net = cv.readNetFromTensorflow(modelFile);
-
-// const classifyImg = img => {
-//     // inception model works with 224 x 224 images, so we resize
-//     // our input images and pad the image with white pixels to
-//     // make the images have the same width and height
-//     const maxImgDim = 224;
-//     const white = new cv.Vec(255, 255, 255);
-//     const imgResized = img.resizeToMax(maxImgDim).padToSquare(white);
-
-//     // network accepts blobs as input
-//     const inputBlob = cv.blobFromImage(imgResized);
-//     net.setInput(inputBlob);
-
-//     // forward pass input through entire network, will return
-//     // classification result as 1xN Mat with confidences of each class
-//     const outputBlob = net.forward();
-
-//     // find all labels with a minimum confidence
-//     const minConfidence = 0.05;
-//     const locations = outputBlob
-//         .threshold(minConfidence, 1, cv.THRESH_BINARY)
-//         .convertTo(cv.CV_8U)
-//         .findNonZero();
-
-//     const result = locations
-//         .map(pt => ({
-//             confidence: parseInt(outputBlob.at(0, pt.x) * 100) / 100,
-//             className: classNames[pt.x]
-//         }))
-//         // sort result by confidence
-//         .sort((r0, r1) => r1.confidence - r0.confidence)
-//         .map(res => `${res.className} (${res.confidence})`);
-
-//     return result;
-// };
 
 // globals
 const captureDelay = parseInt(process.env.captureDelay || 5); // 5 is prod-recommended for now
@@ -174,22 +112,6 @@ wCap.set(cv.CAP_PROP_BRIGHTNESS, 120);
 // Saturation = cap.get(CV_CAP_PROP_SATURATION);
 // Gain       = cap.get(CV_CAP_PROP_GAIN);
 
-// const defaults = {
-//     detectShadows: true,
-//     history: 500,
-//     varThreshold: 16
-// };
-const modified = {
-    detectShadows: false,
-    history: 50,
-    varThreshold: 50
-};
-const mog2 = new cv.BackgroundSubtractorMOG2(
-    modified.history,
-    modified.varThreshold,
-    modified.detectShadows
-);
-let ballMotionMat;
 let staleTransformationMatrixCount = 0;
 const staleTransformationMatrixLimit = 10;
 
@@ -205,7 +127,6 @@ const fetchActiveSection = () => {
         const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
         let ballMat;
 
-        // cv.imshowWait("image", imageMat);
         retrievedMats["Image"] = imageMat;
 
         try {
@@ -222,7 +143,7 @@ const fetchActiveSection = () => {
                 staleTransformationMatrixCount++;
                 if (!retrievedMats["Corners Transformation Matrix"]) {
                     throw Error(
-                        "Failed getting initial corner capture (count: " +
+                        "Failed getting initial corner capture: (count: " +
                             staleTransformationMatrixCount +
                             ")"
                     );
@@ -238,12 +159,15 @@ const fetchActiveSection = () => {
                 console.warn(e);
             }
 
-            const flatImageMat = imageMat.warpPerspective(
+            let flatImageMat = imageMat.warpPerspective(
                 retrievedMats["Corners Transformation Matrix"],
                 new cv.Size(backendResolution.width, backendResolution.height),
                 // http://tanbakuchi.com/posts/comparison-of-openv-interpolation-algorithms/#Upsampling-comparison
                 cv.INTER_CUBIC
             );
+            flatImageMat = flatImageMat
+                .resize(backendResolution.height, backendResolution.width * 1.3)
+                .getRegion(new cv.Rect(0, 0, backendResolution.width, backendResolution.height));
 
             // now try to normalize the flat image to have as many circular holes as possible
             const args = [
@@ -261,7 +185,7 @@ const fetchActiveSection = () => {
                 // minRadius: Minimum radius to be detected. If unknown, put zero as default.
                 9,
                 // maxRadius: Maximum radius to be detected. If unknown, put zero as default
-                15
+                13
             ];
 
             // mark a range of grays as completely white, onto the forCirclesMat
@@ -272,19 +196,24 @@ const fetchActiveSection = () => {
                 .threshold(254, 255, cv.THRESH_TRUNC);
 
             // create mat with relevant grays as white
-            let circlesMask = flatImageMat
+            let relevantGraynessMask = flatImageMat
                 .cvtColor(cv.COLOR_BGR2HSV_FULL)
-                .gaussianBlur(new cv.Size(3, 3), 2, 2);
-            circlesMask = circlesMask.inRange(new cv.Vec3(0, 0, 35), new cv.Vec3(255, 90, 145));
-
-            // cv.imshowWait("circlesMask", circlesMask);
+                .gaussianBlur(new cv.Size(1, 1), 2, 2);
+            relevantGraynessMask = relevantGraynessMask.inRange(
+                new cv.Vec3(0, 0, 95),
+                new cv.Vec3(255, 80, 125)
+            );
 
             const yScale = 1;
             let xScale = 1;
-            const trimCircleEdgePercentage = 0.1;
+            const trimCircleEdgePercentage = 0.2;
+            const minPaletteCount = 20;
+            const maxPaletteCount = 999;
+            const maxPercentage = 0.85;
+            const minPercentage = 0.1;
             const grayestCircle = { circle: undefined, mat: undefined, matchPercentage: 0 };
 
-            while (xScale > 0.75) {
+            while (xScale > 0.95) {
                 xScale -= 0.01;
 
                 const scaledCirclesMat = circlesMat.resize(
@@ -334,55 +263,52 @@ const fetchActiveSection = () => {
                         -1
                     );
 
-                    // get a mat of only the current circle
-                    let singleCircleWithRelevantWhitesMat = circlesMask.resize(
-                        parseInt(backendResolution.height * yScale),
-                        parseInt(backendResolution.width * xScale)
-                    );
+                    // get a mat of only the current circle with relevant grayness only
+                    const singleCircleWithRelevantWhitesMat = relevantGraynessMask
+                        .resize(
+                            parseInt(backendResolution.height * yScale),
+                            parseInt(backendResolution.width * xScale)
+                        )
+                        .copyTo(singleCircleMatBackground, circleMask);
 
-                    singleCircleWithRelevantWhitesMat = singleCircleWithRelevantWhitesMat.copyTo(
-                        singleCircleMatBackground,
-                        circleMask
-                    );
-
-                    // cv.imshowWait("singleCircleWithRelevantWhitesMat", singleCircleWithRelevantWhitesMat);
-
-                    // cv.imshowWait("singleCircleWithRelevantWhitesMat", singleCircleWithRelevantWhitesMat);
-
-                    // get amount of matching grayness
-                    // const match
-                    const matchCoords = singleCircleWithRelevantWhitesMat
+                    const matches = singleCircleWithRelevantWhitesMat
                         .inRange(255, 255)
-                        .findNonZero();
-
-                    const kernel = new cv.Mat([[0, 1], [0, 0]], cv.CV_8U);
-                    const hitMissMat = singleCircleWithRelevantWhitesMat.morphologyEx(kernel, cv.MORPH_HITMISS);
-                    // cv.imshowWait("hitMissMat", hitMissMat);
-
-                    const matches = matchCoords.length;
+                        .countNonZero();
                     // get amount of non-matching grayness, but not the blackness outside the circle
-                    const nonMatchCoords = singleCircleWithRelevantWhitesMat
+                    const nonMatches = singleCircleWithRelevantWhitesMat
                         .inRange(0, 253)
-                        .findNonZero();
-                    const nonMatches = nonMatchCoords.length;
+                        .countNonZero();
                     // get percent of circle that has matching grayness
                     const matchPercentage = matches / (matches + nonMatches);
 
-                    // does this circle have more grayness than any previous circle?
-                    if (matchPercentage > grayestCircle.matchPercentage) {
-                        // save references to this circle's data
-                        grayestCircle.matchPercentage = matchPercentage;
-                        grayestCircle.hitMissMat = hitMissMat;
-                        grayestCircle.moments = singleCircleWithRelevantWhitesMat.moments();
-                        grayestCircle.roundedMatchPercentage =
-                            Math.round(matchPercentage * 100) / 100;
-                        grayestCircle.mat = singleCircleWithRelevantWhitesMat;
-                        // restore the x to the original image x axis scale before storing the reference
-                        grayestCircle.circle = {
-                            x: circle.x / xScale,
-                            y: circle.y,
-                            z: circle.z / (1 - trimCircleEdgePercentage)
-                        };
+                    // is the circle's grayness percentage within the acceptable range?
+                    if (matchPercentage >= minPercentage && matchPercentage <= maxPercentage) {
+                        // get a mat of only the current circle with all colors in grayscale
+                        const singleCircleWithAllColors = scaledCirclesMat.copyTo(
+                            singleCircleMatBackground,
+                            circleMask
+                        );
+                        const paletteCount = new Set(singleCircleWithAllColors.getData()).size - 2;
+
+                        // is the circle palette that of a metal sphere?
+                        if (paletteCount >= minPaletteCount && paletteCount <= maxPaletteCount) {
+                            // does this circle have more grayness than any previous circle?
+                            if (matchPercentage > grayestCircle.matchPercentage) {
+                                // save references to this circle's data
+                                grayestCircle.matchPercentage = matchPercentage;
+                                // grayestCircle.hitMissMat = hitMissMat;
+                                grayestCircle.moments = singleCircleWithRelevantWhitesMat.moments();
+                                grayestCircle.roundedMatchPercentage =
+                                    Math.round(matchPercentage * 100) / 100;
+                                grayestCircle.mat = singleCircleWithRelevantWhitesMat;
+                                // restore the x to the original image x axis scale before storing the reference
+                                grayestCircle.circle = {
+                                    x: circle.x / xScale,
+                                    y: circle.y,
+                                    z: circle.z / (1 - trimCircleEdgePercentage)
+                                };
+                            }
+                        }
                     }
                 });
 
@@ -420,23 +346,22 @@ const fetchActiveSection = () => {
                 // cv.imshowWait("visualAid", visualAid);
             }
 
-            flatImageMat.drawCircle(
-                new cv.Point2(grayestCircle.circle.x, grayestCircle.circle.y),
-                grayestCircle.circle.z * 1,
-                new cv.Vec3(255, 0, 0),
-                2
-            );
+            if (grayestCircle.circle) {
+                flatImageMat.drawCircle(
+                    new cv.Point2(grayestCircle.circle.x, grayestCircle.circle.y),
+                    grayestCircle.circle.z * 1,
+                    new cv.Vec3(255, 0, 0),
+                    2
+                );
 
-            console.log(
-                "Ball identification grayness match percentage: " +
-                    grayestCircle.roundedMatchPercentage * 100 +
-                    "% (moments: " +
-                    Object.keys(grayestCircle.moments).length +
-                    ")"
-            );
-            cv.imshowWait("flatImageMat", flatImageMat);
-            cv.imshowWait("hitMissMat", grayestCircle.hitMissMat);
-            // cv.imshowWait("grayestCircle.mat", grayestCircle.mat);
+                console.log(
+                    "Ball identification grayness match percentage: " +
+                        grayestCircle.roundedMatchPercentage * 100 +
+                        "% (moments: " +
+                        Object.keys(grayestCircle.moments).length +
+                        ")"
+                );
+            }
 
             retrievedMats["2D Image"] = flatImageMat;
 
@@ -449,11 +374,6 @@ const fetchActiveSection = () => {
             });
 
             retrievedMats["Ball Mask"] = ballMat;
-            // ballMotionMat = mog2.apply(ballMat);
-
-            // cv.imshowWait("", forCircleMat);
-
-            // const result = classifyImg(retrievedMats["Image"]);
 
             getActiveSections(db.getSections(), retrievedMats["Ball Mask"].bgrToGray()).then(
                 activeSections => {
@@ -474,7 +394,6 @@ const fetchActiveSection = () => {
                         })
                         .filter(s => s !== null);
                     capturesDoneWithinInterval++;
-                    // console.log(JSON.stringify(lastActiveSections.map(s => s.index)));
                     setTimeout(fetchActiveSection, captureDelay);
                 }
             );
