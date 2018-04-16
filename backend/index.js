@@ -97,7 +97,7 @@ setInterval(() => {
 //     }
 // });
 
-const onMessages = {
+const clientMsg = {
     connection: "connection",
     saveSection: "saveSection",
     loadSection: "loadSection",
@@ -105,22 +105,24 @@ const onMessages = {
     requestCornerHSVMasks: "requestCornerHSVMasks",
     requestImage: "requestImage",
     requestCornerStatus: "requestCornerStatus",
-    requestActiveSections: "requestActiveSections"
+    requestActiveSections: "requestActiveSections",
+    requestStatus: "requestStatus"
 };
 
-const emitMessages = {
+const serverMsg = {
     loadedSection: "loadedSection",
     cornerHSVMasks: "cornerHSVMasks",
     activeImage: "activeImage",
     cornerStatus: "cornerStatus",
-    activeSections: "activeSections"
+    activeSections: "activeSections",
+    status: "status"
 };
 
 // socket endpoints
-io.on(onMessages.connection, function(socket) {
+io.on(clientMsg.connection, function(socket) {
     console.log("a user connected");
     socket
-        .on(onMessages.saveSection, data => {
+        .on(clientMsg.saveSection, data => {
             // webpage wants to save section data
             data.zones = adjustZonesResolution(data.zones, data.resolution, settings.resolution);
             data.zones = simplifyZones(
@@ -132,7 +134,20 @@ io.on(onMessages.connection, function(socket) {
             db.writeSection(data.index, data.zones);
         })
 
-        .on(onMessages.loadSection, index => {
+        .on(clientMsg.requestStatus, () => {
+            const evaluatedStatus = {};
+            Object.keys(status).forEach(key => {
+                if (typeof status[key] === "function") {
+                    evaluatedStatus[key] = status[key]();
+                } else {
+                    evaluatedStatus[key] = status[key];
+                }
+            });
+
+            socket.emit(serverMsg.status, evaluatedStatus);
+        })
+
+        .on(clientMsg.loadSection, index => {
             const section = db.getSection(index);
             if (section) {
                 const zones = adjustZonesResolution(
@@ -140,33 +155,33 @@ io.on(onMessages.connection, function(socket) {
                     settings.resolution,
                     frontendResolution
                 );
-                socket.emit(emitMessages.loadedSection, { index, zones });
+                socket.emit(serverMsg.loadedSection, { index, zones });
             }
         })
 
-        .on(onMessages.saveCornerHSVMasks, data => {
+        .on(clientMsg.saveCornerHSVMasks, data => {
             db.writeCornerHSVMasks(data);
         })
 
-        .on(onMessages.requestCornerHSVMasks, data => {
-            socket.emit(emitMessages.cornerHSVMasks, db.getCornerHSVMasks(data));
+        .on(clientMsg.requestCornerHSVMasks, data => {
+            socket.emit(serverMsg.cornerHSVMasks, db.getCornerHSVMasks(data));
         })
 
-        .on(onMessages.requestImage, data => {
+        .on(clientMsg.requestImage, data => {
             if (data.cameraViewMode && mats[data.cameraViewMode]) {
                 socket.emit(
-                    emitMessages.activeImage,
+                    serverMsg.activeImage,
                     new Buffer(cv.imencode(".png", mats[data.cameraViewMode]))
                 );
             }
         })
 
-        .on(onMessages.requestCornerStatus, () => status.cornerStatus())
+        .on(clientMsg.requestCornerStatus, () => status.cornerStatus())
 
-        .on(onMessages.requestActiveSections, () => {
+        .on(clientMsg.requestActiveSections, () => {
             // send back active sections with respective zones
             socket.emit(
-                emitMessages.activeSections,
+                serverMsg.activeSections,
                 status.activeSections.map(activeSectionIndex => {
                     const section = db.getSection(activeSectionIndex);
                     const zones = adjustZonesResolution(

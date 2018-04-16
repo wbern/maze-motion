@@ -29,21 +29,27 @@ import Statistics from "./Statistics";
 
 import "./Calibrate.css";
 
-const messages = {
-    // subscriptions
-    loadedSection: "loadedSection",
-    activeImage: "activeImage",
-    activeSections: "activeSections",
-    cornerStatus: "cornerStatus",
-    cornerHSVMasks: "cornerHSVMasks",
-    // emits
-    requestImage: "requestImage",
-    requestActiveSections: "requestActiveSections",
-    requestCornerStatus: "requestCornerStatus",
-    loadSection: "loadSection",
+const clientMsg = {
     saveSection: "saveSection",
+    loadSection: "loadSection",
     saveCornerHSVMasks: "saveCornerHSVMasks",
-    requestCornerHSVMasks: "requestCornerHSVMasks"
+    requestCornerHSVMasks: "requestCornerHSVMasks",
+    requestImage: "requestImage",
+    requestCornerStatus: "requestCornerStatus",
+    requestActiveSections: "requestActiveSections",
+    requestStatus: "requestStatus"
+};
+
+const serverMsg = {
+    disconnect: "disconnect",
+    connect: "connect",
+    connection: "connection",
+    loadedSection: "loadedSection",
+    cornerHSVMasks: "cornerHSVMasks",
+    activeImage: "activeImage",
+    cornerStatus: "cornerStatus",
+    activeSections: "activeSections",
+    status: "status"
 };
 
 class Calibrate extends Component {
@@ -55,7 +61,8 @@ class Calibrate extends Component {
             sectionIndexInputValue: 1,
             cameraFrameSkips: 1,
             cameraViewMode: "2D Image",
-            availableCameraViewModes: ["2D Image", "Image", "Corners Mask", "Ball Mask"]
+            availableCameraViewModes: ["2D Image", "Image", "Corners Mask", "Ball Mask"],
+            status: {}
         };
 
         this.blockHover = this.blockHover.bind(this);
@@ -69,16 +76,13 @@ class Calibrate extends Component {
 
     subscribe() {
         // connection-related
-        const setConnected = function() {
+        const setConnected = () => {
             this.setState({ connected: true });
             this.requestInitialData();
-        }.bind(this);
-        const setDisconnected = function() {
+        };
+        const setDisconnected = () => {
             this.setState({ connected: false });
-        }.bind(this);
-
-        this.props.socket.on("connect", setConnected);
-        this.props.socket.on("disconnect", setDisconnected);
+        };
 
         if (this.props.socket.connected) {
             setConnected();
@@ -86,54 +90,61 @@ class Calibrate extends Component {
             setDisconnected();
         }
 
-        // to get hsv corner masks
-        const loadedCornerHSVMasks = function(cornerHSVMasks) {
-            this.setState({ cornerHSVMasks });
-        }.bind(this);
-        this.props.socket.on(messages.cornerHSVMasks, loadedCornerHSVMasks);
+        Object.keys(serverMsg).forEach(key => {
+            const msg = serverMsg[key];
 
-        // get statuses
-        this.props.socket.on(
-            messages.cornerStatus,
-            function(cornerStatus) {
-                this.setState({ cornerStatus });
-            }.bind(this)
-        );
-
-        // section-related
-        this.props.socket.on(
-            messages.loadedSection,
-            function(loadedSectionInfo) {
-                this.grid = getEmptyGrid();
-                this.setGrid(this.grid, loadedSectionInfo.zones);
-            }.bind(this)
-        );
-        this.props.socket.on(messages.activeImage, this.setImage.bind(this));
-        this.props.socket.on(
-            messages.activeSections,
-            function(activeSections) {
-                if (activeSections) {
-                    this.setState({
-                        activeSections
-                    });
-                    this.activeGrid = getEmptyGrid();
-                    activeSections.forEach(activeSection => {
-                        this.setGrid(this.activeGrid, activeSection.zones, activeSection.index);
-                    });
-                }
-            }.bind(this)
-        );
+            this.props.socket.on(
+                msg,
+                function(data) {
+                    switch (msg) {
+                        case serverMsg.connect:
+                            setConnected();
+                            break;
+                        case serverMsg.disconnect:
+                            setDisconnected();
+                            break;
+                        case serverMsg.cornerHSVMasks:
+                            this.setState({ cornerHSVMasks: data });
+                            break;
+                        case serverMsg.status:
+                            this.setState({ status: data });
+                            break;
+                        case serverMsg.loadedSection:
+                            this.grid = getEmptyGrid();
+                            this.setGrid(this.grid, data.zones);
+                            break;
+                        case serverMsg.activeImage:
+                            this.setImage(data);
+                            break;
+                        case serverMsg.activeSections:
+                            if (data) {
+                                this.setState({
+                                    activeSections: data
+                                });
+                                this.activeGrid = getEmptyGrid();
+                                data.forEach(activeSection => {
+                                    this.setGrid(
+                                        this.activeGrid,
+                                        activeSection.zones,
+                                        activeSection.index
+                                    );
+                                });
+                            }
+                    }
+                }.bind(this)
+            );
+        });
     }
 
     unsubscribe() {
-        this.props.socket.off(messages.loadedSection);
-        this.props.socket.off(messages.activeImage);
-        this.props.socket.off(messages.activeSections);
-        this.props.socket.off(messages.cornerStatus);
+        Object.keys(serverMsg).forEach(key => {
+            const msg = msg[key];
+            this.props.socket.off(msg);
+        });
     }
 
     requestInitialData() {
-        this.emitIfConnected(messages.requestCornerHSVMasks);
+        this.emitIfConnected(clientMsg.requestCornerHSVMasks);
     }
 
     componentWillUnmount() {
@@ -152,7 +163,7 @@ class Calibrate extends Component {
             const updateImage = () => {
                 if (this.isImageElementUpdatable()) {
                     // image-specific
-                    this.emitIfConnected(messages.requestImage, {
+                    this.emitIfConnected(clientMsg.requestImage, {
                         cameraViewMode: this.state.cameraViewMode
                     });
                 }
@@ -161,8 +172,8 @@ class Calibrate extends Component {
             setTimeout(updateImage, updateInterval * (this.state.cameraFrameSkips || 0) + 1);
 
             // general things
-            this.emitIfConnected(messages.requestActiveSections);
-            this.emitIfConnected(messages.requestCornerStatus);
+            this.emitIfConnected(clientMsg.requestActiveSections);
+            this.emitIfConnected(clientMsg.requestStatus);
         }, updateInterval);
     }
 
@@ -219,7 +230,7 @@ class Calibrate extends Component {
 
     onGridLoadClick(e) {
         e.preventDefault();
-        this.props.socket.emit(messages.loadSection, this.state.sectionIndexInputValue);
+        this.props.socket.emit(clientMsg.loadSection, this.state.sectionIndexInputValue);
         // e.target.children.sectionIndex.value
         this.grid = getEmptyGrid();
         this.forceUpdate();
@@ -227,7 +238,7 @@ class Calibrate extends Component {
 
     onGridSaveClick(e) {
         e.preventDefault();
-        this.props.socket.emit(messages.saveSection, {
+        this.props.socket.emit(clientMsg.saveSection, {
             zones: getZonesByGrid(this.grid),
             resolution: { height: 480, width: 640 },
             index: this.state.sectionIndexInputValue
@@ -306,7 +317,7 @@ class Calibrate extends Component {
 
     saveHsvMaskRanges(maskName, ranges) {
         if (maskName === "cornerHSVMasks") {
-            this.emitIfConnected(messages.saveCornerHSVMasks, ranges);
+            this.emitIfConnected(clientMsg.saveCornerHSVMasks, ranges);
         }
     }
 
@@ -425,8 +436,9 @@ class Calibrate extends Component {
                         <Col xs={5}>
                             <Row>
                                 <Statistics
+                                    status={{connected: this.state.connected, ...this.state.status}}
                                     activeSections={this.state.activeSections}
-                                    cornerStatus={this.state.cornerStatus}
+                                    cornerStatus={this.state.status.cornerStatus}
                                     connected={this.state.connected}
                                 />
                             </Row>
@@ -459,20 +471,18 @@ class Calibrate extends Component {
                                                 id="input-dropdown-addon"
                                                 title="Change"
                                             >
-                                                {this.state.availableCameraViewModes.map(
-                                                    name => (
-                                                        <MenuItem
-                                                            key={name}
-                                                            onClick={() =>
-                                                                this.setState({
-                                                                    cameraViewMode: name
-                                                                })
-                                                            }
-                                                        >
-                                                            {name}
-                                                        </MenuItem>
-                                                    )
-                                                )}
+                                                {this.state.availableCameraViewModes.map(name => (
+                                                    <MenuItem
+                                                        key={name}
+                                                        onClick={() =>
+                                                            this.setState({
+                                                                cameraViewMode: name
+                                                            })
+                                                        }
+                                                    >
+                                                        {name}
+                                                    </MenuItem>
+                                                ))}
                                             </DropdownButton>
                                         </InputGroup>
                                     </Col>
