@@ -240,12 +240,13 @@ const track = () => {
                         new cv.Rect(0, 0, settings.resolution.width, settings.resolution.height)
                     );
 
-                const ball = findBall(mats["2D Image"], settings.ballIdentification);
+                const sections = db.getSections();
+
+                const ball = findBall(mats["2D Image"], sections, settings.ballIdentification);
                 if (ball.circle) {
                     mats["Ball Mask"] = ball.mat;
 
                     // get active sections
-                    const sections = db.getSections();
                     const activeSections = Object.keys(sections).filter(sectionName =>
                         sections[sectionName].zones.some(
                             zone =>
