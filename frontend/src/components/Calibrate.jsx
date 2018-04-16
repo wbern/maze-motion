@@ -61,7 +61,14 @@ class Calibrate extends Component {
             sectionIndexInputValue: 1,
             cameraFrameSkips: 1,
             cameraViewMode: "2D Image",
-            availableCameraViewModes: ["2D Image", "Image", "Corners Mask", "Ball Mask"],
+            availableCameraViewModes: [
+                "2D Image",
+                "Image",
+                "Corners Mask",
+                "Ball Mask",
+                "Ball Background Mask",
+                "Ball Color Filtered Mask"
+            ],
             status: {}
         };
 
@@ -158,23 +165,26 @@ class Calibrate extends Component {
         this.subscribe();
 
         const updateInterval = 500;
-        setInterval(() => {
-            // request things
-            const updateImage = () => {
-                if (this.isImageElementUpdatable()) {
-                    // image-specific
-                    this.emitIfConnected(clientMsg.requestImage, {
-                        cameraViewMode: this.state.cameraViewMode
-                    });
-                }
-            };
+        setInterval(
+            function() {
+                // request things
+                const updateImage = () => {
+                    if (this.isImageElementUpdatable()) {
+                        // image-specific
+                        this.emitIfConnected(clientMsg.requestImage, {
+                            cameraViewMode: this.state.cameraViewMode
+                        });
+                    }
+                };
 
-            setTimeout(updateImage, updateInterval * (this.state.cameraFrameSkips || 0) + 1);
+                setTimeout(updateImage, updateInterval * (this.state.cameraFrameSkips || 0) + 1);
 
-            // general things
-            this.emitIfConnected(clientMsg.requestActiveSections);
-            this.emitIfConnected(clientMsg.requestStatus);
-        }, updateInterval);
+                // general things
+                this.emitIfConnected(clientMsg.requestActiveSections);
+                this.emitIfConnected(clientMsg.requestStatus);
+            }.bind(this),
+            updateInterval
+        );
     }
 
     isImageElementUpdatable() {
@@ -436,7 +446,10 @@ class Calibrate extends Component {
                         <Col xs={5}>
                             <Row>
                                 <Statistics
-                                    status={{connected: this.state.connected, ...this.state.status}}
+                                    status={{
+                                        connected: this.state.connected,
+                                        ...this.state.status
+                                    }}
                                     activeSections={this.state.activeSections}
                                     cornerStatus={this.state.status.cornerStatus}
                                     connected={this.state.connected}

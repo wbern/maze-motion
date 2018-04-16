@@ -243,6 +243,9 @@ const track = () => {
                 const sections = db.getSections();
 
                 const ball = findBall(mats["2D Image"], sections, settings.ballIdentification);
+                mats["Ball Background Mask"] = ball.backgroundMat;
+                mats["Ball Color Filtered Mask"] = ball.colorFilteredMat;
+
                 if (ball.circle) {
                     mats["Ball Mask"] = ball.mat;
 
@@ -303,7 +306,7 @@ const track = () => {
         } catch (e) {
             errorTrackingsPerSecond++;
             status.errorMessage = e;
-            console.err(e);
+            console.error(e);
             setTimeout(track, failedCaptureDelay);
         }
     });

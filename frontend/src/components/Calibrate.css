@@ -14,7 +14,7 @@
 }
 
 .block {
-    color: gray;
+    color: rgba(50, 50, 50, 0.3);
     font-size: 8px;
     vertical-align: middle;
     text-align: center;
@@ -28,11 +28,11 @@
 }
 
 .block-1 {
-    background: rgba(0, 255, 255, 0.5);
+    background: rgba(0, 255, 255, 0.25);
 }
 
 .block-active {
-    border: 0.5px solid rgba(0,0,0,0.1);
+    border: 0.5px solid rgba(0, 0, 0, 0.1);
     box-sizing: border-box;
 }
 

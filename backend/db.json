@@ -3,10 +3,112 @@
     "1": {
       "zones": [
         {
+          "y": 110,
+          "x": 210,
+          "width": 10,
+          "height": 160
+        },
+        {
+          "y": 100,
+          "x": 220,
+          "width": 30,
+          "height": 170
+        },
+        {
+          "y": 360,
+          "x": 240,
+          "width": 10,
+          "height": 40
+        },
+        {
+          "y": 100,
+          "x": 250,
+          "width": 10,
+          "height": 170
+        },
+        {
+          "y": 360,
+          "x": 250,
+          "width": 10,
+          "height": 40
+        },
+        {
           "y": 170,
-          "x": 190,
-          "width": 80,
-          "height": 70
+          "x": 260,
+          "width": 10,
+          "height": 100
+        },
+        {
+          "y": 360,
+          "x": 260,
+          "width": 10,
+          "height": 40
+        },
+        {
+          "y": 190,
+          "x": 270,
+          "width": 10,
+          "height": 80
+        },
+        {
+          "y": 360,
+          "x": 270,
+          "width": 10,
+          "height": 40
+        },
+        {
+          "y": 190,
+          "x": 280,
+          "width": 10,
+          "height": 80
+        },
+        {
+          "y": 360,
+          "x": 280,
+          "width": 10,
+          "height": 40
+        },
+        {
+          "y": 190,
+          "x": 290,
+          "width": 10,
+          "height": 80
+        },
+        {
+          "y": 360,
+          "x": 290,
+          "width": 10,
+          "height": 40
+        },
+        {
+          "y": 190,
+          "x": 300,
+          "width": 10,
+          "height": 80
+        },
+        {
+          "y": 360,
+          "x": 300,
+          "width": 10,
+          "height": 40
+        },
+        {
+          "y": 190,
+          "x": 310,
+          "width": 10,
+          "height": 80
+        },
+        {
+          "y": 360,
+          "x": 310,
+          "width": 10,
+          "height": 40
+        },
+        {
+          "y": 260,
+          "x": 320,
+          "width": 50,
+          "height": 140
         }
       ]
     },
@@ -36,31 +138,33 @@
     },
     "ballIdentification": {
       "trimCircleEdgePercentage": 0.2,
-      "minPaletteCount": 20,
-      "maxPaletteCount": 999,
-      "maxPercentage": 0.85,
-      "minPercentage": 0.1,
+      "minPaletteCount": 0,
+      "maxPaletteCount": 0,
+      "maxPercentage": 0.9,
+      "minPercentage": 0.6,
       "houghCircleSettings": {
         "minDist": 5,
         "cannyUpperThreshold": 30,
-        "centerDetectionThreshold": 17,
+        "centerDetectionThreshold": 11,
         "minRadius": 9,
-        "maxRadius": 13
+        "maxRadius": 15
       },
       "blurAmount": 1,
       "blurKernel": 2,
-      "ballHSVMask": {
-        "min": [
-          0,
-          0,
-          95
-        ],
-        "max": [
-          255,
-          80,
-          125
-        ]
-      }
+      "ballHSVMasks": [
+        {
+          "min": [
+            0,
+            0,
+            5
+          ],
+          "max": [
+            255,
+            255,
+            125
+          ]
+        }
+      ]
     }
   },
   "ballHSVMasks": [
