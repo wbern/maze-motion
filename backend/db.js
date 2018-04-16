@@ -41,6 +41,10 @@ class db {
             .value();
     }
 
+    getSettings() {
+        return this.lowdb.get("settings").value();        
+    }
+
     getCornerHSVMasks() {
         return this.lowdb.get("cornerHSVMasks").value();
     }

@@ -1,9 +1,8 @@
 const cv = require("opencv4nodejs");
 const getTransformationMatrixMat = require("./lib/getTransformationMatrixMat");
-const getActiveSections = require("./lib/getActiveSections");
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
-const getBallCoords = require("./lib/getBallCoords");
+const findBall = require("./lib/findBall");
 
 const app = require("express")();
 const http = require("http").Server(app);
@@ -14,235 +13,283 @@ const io = require("socket.io").listen(server);
 const db = require("./db");
 
 // globals
+const settings = db.getSettings();
+
 const captureDelay = parseInt(process.env.captureDelay || 5); // 5 is prod-recommended for now
 const failedCaptureDelay = 1000;
 const frontendResolution = { height: 480, width: 640 };
-const backendResolution = { height: 480, width: 640 };
-const retrievedMats = {};
-let lastActiveSections;
 
-// endpoints
-app.get("/image", function(req, res) {
-    if (retrievedMats["2D Image"]) {
-        const image = cv.imencode(".jpg", retrievedMats["2D Image"]);
-        const base64 = new Buffer(image).toString("base64");
-        res.status(200).send(base64);
-    } else {
-        const mat = wCap.read();
-        const image = cv.imencode(".jpg", mat);
-        // let base64Image = Buffer.from(cv.imencode(".png", mat)).toString();
-        const base64Image = new Buffer(image).toString("base64");
-        res.status(200).send(base64Image);
-    }
-});
+// these get updated throughout the back-end runtime
+const mats = {};
 
-// socket endpoints
-io.on("connection", function(socket) {
-    console.log("a user connected");
-    socket.on("saveSection", data => {
-        // webpage wants to save section data
-        data.zones = adjustZonesResolution(data.zones, data.resolution, backendResolution);
-        data.zones = simplifyZones(
-            data.zones,
-            data.resolution,
-            backendResolution,
-            frontendResolution
-        );
-        db.writeSection(data.index, data.zones);
-    });
-
-    socket.on("loadSection", index => {
-        console.log("loadSection");
-        const section = db.getSection(index);
-        if (section) {
-            const zones = adjustZonesResolution(
-                section.zones,
-                backendResolution,
-                frontendResolution
-            );
-            socket.emit("loadedSection", { index, zones });
-        }
-    });
-
-    socket.on("saveCornerHSVMasks", data => {
-        db.writeCornerHSVMasks(data);
-    });
-
-    socket.on("requestCornerHSVMasks", data => {
-        socket.emit("cornerHSVMasks", db.getCornerHSVMasks(data));
-    });
-
-    socket.on("requestImage", data => {
-        if (data.cameraViewMode && retrievedMats[data.cameraViewMode]) {
-            socket.emit(
-                "activeImage",
-                new Buffer(cv.imencode(".png", retrievedMats[data.cameraViewMode]))
-            );
-        }
-    });
-
-    socket.on("requestCornerStatus", () => {
-        if (staleTransformationMatrixCount === 0) {
-            socket.emit("cornerStatus", "ok");
-        } else if (staleTransformationMatrixCount < 10) {
-            socket.emit("cornerStatus", "warn");
+const status = {
+    activeSections: [],
+    timings: {
+        general: -1,
+        error: -1,
+        ball: -1,
+        corners: -1
+    },
+    cornerIdentificationFailCount: 0,
+    cornerStatus: () => {
+        if (status.cornerIdentificationFailCount === 0) {
+            return "ok";
+        } else if (status.cornerIdentificationFailCount < 10) {
+            return "warn";
         } else {
-            socket.emit("cornerStatus", "err");
+            return "err";
         }
-    });
+    }
+};
 
-    socket.on("requestActiveSections", () => {
-        socket.emit("activeSections", lastActiveSections);
-    });
-});
-
-// open capture from webcam
+// open capture from camera
 const devicePort = parseInt(process.env.devicePort || 0);
 const wCap = new cv.VideoCapture(devicePort);
-wCap.set(cv.CAP_PROP_FRAME_WIDTH, backendResolution.width);
-wCap.set(cv.CAP_PROP_FRAME_HEIGHT, backendResolution.height);
-wCap.set(cv.CAP_PROP_SATURATION, 50);
-wCap.set(cv.CAP_PROP_CONTRAST, 40);
-wCap.set(cv.CAP_PROP_BRIGHTNESS, 120);
-// doesn't seem to work
-// wCap.set(cv.CAP_PROP_WHITE_BALANCE_BLUE_U, 99);
-// wCap.set(cv.CAP_PROP_WHITE_BALANCE_RED_V, 99);
 
-// Brightness = cap.get(CV_CAP_PROP_BRIGHTNESS);
-// Contrast   = cap.get(CV_CAP_PROP_CONTRAST );
-// Saturation = cap.get(CV_CAP_PROP_SATURATION);
-// Gain       = cap.get(CV_CAP_PROP_GAIN);
+// apply settings to camera etc.
+const applySettings = () => {
+    wCap.set(cv.CAP_PROP_FRAME_WIDTH, settings.resolution.width);
+    wCap.set(cv.CAP_PROP_FRAME_HEIGHT, settings.resolution.height);
+    if (settings.cameraSaturation) {
+        wCap.set(cv.CAP_PROP_SATURATION, settings.cameraSaturation);
+    }
+    if (settings.cameraContrast) {
+        wCap.set(cv.CAP_PROP_CONTRAST, settings.cameraContrast);
+    }
+    if (settings.cameraBrightness) {
+        wCap.set(cv.CAP_PROP_BRIGHTNESS, settings.cameraBrightness);
+    }
+    if (settings.cameraGain) {
+        wCap.set(cv.CV_CAP_PROP_GAIN, settings.cameraGain);
+    }
+};
+applySettings();
 
-let staleTransformationMatrixCount = 0;
-const staleTransformationMatrixLimit = 10;
-
-let capturesDoneWithinInterval = 0;
+// for our timings when debugging
+let generalTrackingsPerSecond = 0;
+let errorTrackingsPerSecond = 0;
+let ballTrackingsPerSecond = 0;
+let cornerTrackingsPerSecond = 0;
 
 setInterval(() => {
-    console.log(capturesDoneWithinInterval + " captures per 5 seconds");
-    capturesDoneWithinInterval = 0;
-}, 5000);
+    status.timings.general = generalTrackingsPerSecond;
+    generalTrackingsPerSecond = 0;
+    status.timings.error = errorTrackingsPerSecond;
+    errorTrackingsPerSecond = 0;
+    status.timings.ball = ballTrackingsPerSecond;
+    ballTrackingsPerSecond = 0;
+    status.timings.corners = cornerTrackingsPerSecond;
+    cornerTrackingsPerSecond = 0;
+}, 1000);
 
-const fetchActiveSection = () => {
-    wCap.readAsync().then(imageMat => {
-        const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
-        let ballMat;
+// endpoints, who needs them though?
+// app.get("/image", function(req, res) {
+//     if (retrievedMats["2D Image"]) {
+//         const image = cv.imencode(".jpg", retrievedMats["2D Image"]);
+//         const base64 = new Buffer(image).toString("base64");
+//         res.status(200).send(base64);
+//     } else {
+//         const mat = wCap.read();
+//         const image = cv.imencode(".jpg", mat);
+//         // let base64Image = Buffer.from(cv.imencode(".png", mat)).toString();
+//         const base64Image = new Buffer(image).toString("base64");
+//         res.status(200).send(base64Image);
+//     }
+// });
 
-        retrievedMats["Image"] = imageMat;
+const onMessages = {
+    connection: "connection",
+    saveSection: "saveSection",
+    loadSection: "loadSection",
+    saveCornerHSVMasks: "saveCornerHSVMasks",
+    requestCornerHSVMasks: "requestCornerHSVMasks",
+    requestImage: "requestImage",
+    requestCornerStatus: "requestCornerStatus",
+    requestActiveSections: "requestActiveSections"
+};
+
+const emitMessages = {
+    loadedSection: "loadedSection",
+    cornerHSVMasks: "cornerHSVMasks",
+    activeImage: "activeImage",
+    cornerStatus: "cornerStatus",
+    activeSections: "activeSections"
+};
+
+// socket endpoints
+io.on(onMessages.connection, function(socket) {
+    console.log("a user connected");
+    socket
+        .on(onMessages.saveSection, data => {
+            // webpage wants to save section data
+            data.zones = adjustZonesResolution(data.zones, data.resolution, settings.resolution);
+            data.zones = simplifyZones(
+                data.zones,
+                data.resolution,
+                settings.resolution,
+                frontendResolution
+            );
+            db.writeSection(data.index, data.zones);
+        })
+
+        .on(onMessages.loadSection, index => {
+            const section = db.getSection(index);
+            if (section) {
+                const zones = adjustZonesResolution(
+                    section.zones,
+                    settings.resolution,
+                    frontendResolution
+                );
+                socket.emit(emitMessages.loadedSection, { index, zones });
+            }
+        })
+
+        .on(onMessages.saveCornerHSVMasks, data => {
+            db.writeCornerHSVMasks(data);
+        })
+
+        .on(onMessages.requestCornerHSVMasks, data => {
+            socket.emit(emitMessages.cornerHSVMasks, db.getCornerHSVMasks(data));
+        })
+
+        .on(onMessages.requestImage, data => {
+            if (data.cameraViewMode && mats[data.cameraViewMode]) {
+                socket.emit(
+                    emitMessages.activeImage,
+                    new Buffer(cv.imencode(".png", mats[data.cameraViewMode]))
+                );
+            }
+        })
+
+        .on(onMessages.requestCornerStatus, () => status.cornerStatus())
+
+        .on(onMessages.requestActiveSections, () => {
+            // send back active sections with respective zones
+            socket.emit(
+                emitMessages.activeSections,
+                status.activeSections.map(activeSectionIndex => {
+                    const section = db.getSection(activeSectionIndex);
+                    const zones = adjustZonesResolution(
+                        section.zones,
+                        settings.resolution,
+                        frontendResolution
+                    );
+
+                    return { index: activeSectionIndex, zones };
+                })
+            );
+        });
+});
+
+const track = () => {
+    wCap.readAsync().then(board => {
+        mats["Image"] = board;
 
         try {
-            try {
-                const { transformationMatrixMat, maskedCornersMat } = getTransformationMatrixMat(
-                    imageMat,
-                    db.getCornerHSVMasks(),
-                    backendResolution
-                );
-                retrievedMats["Corners Transformation Matrix"] = transformationMatrixMat;
-                retrievedMats["Corners Mask"] = maskedCornersMat;
-                staleTransformationMatrixCount = 0;
-            } catch (e) {
-                staleTransformationMatrixCount++;
-                if (!retrievedMats["Corners Transformation Matrix"]) {
-                    throw Error(
-                        "Failed getting initial corner capture: (count: " +
-                            staleTransformationMatrixCount +
-                            ")"
-                    );
-                } else if (staleTransformationMatrixCount > staleTransformationMatrixLimit) {
-                    throw Error(
-                        "Failed to get corners " +
-                            staleTransformationMatrixLimit +
-                            " times, discarding capture (count: " +
-                            staleTransformationMatrixCount +
-                            ")"
-                    );
-                }
-                console.warn(e);
+            // get image transformation using corners
+            const {
+                transformationMatrixMat,
+                maskedCornersMat,
+                foundCorners
+            } = getTransformationMatrixMat(
+                mats["Image"],
+                db.getCornerHSVMasks(),
+                settings.resolution
+            );
+            mats["Corners Transformation Matrix"] = transformationMatrixMat;
+            mats["Corners Mask"] = maskedCornersMat;
+            status.foundCorners = foundCorners;
+
+            if (mats["Corners Transformation Matrix"]) {
+                status.cornerIdentificationFailCount = 0;
+                cornerTrackingsPerSecond++;
+            } else {
+                status.cornerIdentificationFailCount++;
             }
 
-            let flatImageMat = imageMat.warpPerspective(
-                retrievedMats["Corners Transformation Matrix"],
-                new cv.Size(backendResolution.width, backendResolution.height),
-                // http://tanbakuchi.com/posts/comparison-of-openv-interpolation-algorithms/#Upsampling-comparison
-                cv.INTER_CUBIC
-            );
-            flatImageMat = flatImageMat
-                .resize(backendResolution.height, backendResolution.width * 1.3)
-                .getRegion(new cv.Rect(0, 0, backendResolution.width, backendResolution.height));
+            if (mats["Corners Transformation Matrix"]) {
+                // we have the 2D transformation matrix, make the board 2D
+                mats["2D Image"] = mats["Image"]
+                    .warpPerspective(
+                        mats["Corners Transformation Matrix"],
+                        new cv.Size(settings.resolution.width, settings.resolution.height),
+                        // http://tanbakuchi.com/posts/comparison-of-openv-interpolation-algorithms/#Upsampling-comparison
+                        cv.INTER_CUBIC
+                    )
+                    // resize the board from square to whatever ratio is defined in settings (x usually 1.3)
+                    .resize(
+                        settings.resolution.height * settings.boardYScale,
+                        settings.resolution.width * settings.boardXScale
+                    )
+                    .getRegion(
+                        new cv.Rect(0, 0, settings.resolution.width, settings.resolution.height)
+                    );
 
-            const grayestCircle = getBallCoords(flatImageMat, {
-                trimCircleEdgePercentage: 0.2,
-                minPaletteCount: 20,
-                maxPaletteCount: 999,
-                maxPercentage: 0.85,
-                minPercentage: 0.1,
-                houghCircleSettings: {
-                    minDist: 5,
-                    cannyUpperThreshold: 30,
-                    centerDetectionThreshold: 17,
-                    minRadius: 9,
-                    maxRadius: 13
-                },
-                blurAmount: 1,
-                blurKernel: 2,
-                ballHSVMask: {
-                    min: new cv.Vec3(0, 0, 95),
-                    max: new cv.Vec3(255, 80, 125)
+                const ball = findBall(mats["2D Image"], settings.ballIdentification);
+                if (ball.circle) {
+                    mats["Ball Mask"] = ball.mat;
+
+                    // get active sections
+                    const sections = db.getSections();
+                    const activeSections = Object.keys(sections).filter(sectionName =>
+                        sections[sectionName].zones.some(
+                            zone =>
+                                ball.circle.x >= zone.x &&
+                                ball.circle.x <= zone.x + zone.width &&
+                                (ball.circle.y >= zone.y && ball.circle.y <= zone.y + zone.height)
+                        )
+                    );
+
+                    // save new active sections if there was a change
+                    if (
+                        activeSections.length !== status.activeSections.length ||
+                        activeSections.some(
+                            activeSectionName => !status.activeSections.includes(activeSectionName)
+                        )
+                    ) {
+                        status.activeSections = activeSections;
+                    }
+
+                    if (settings.visualAid.ballCircle) {
+                        // around the ball
+                        mats["2D Image"].drawCircle(
+                            new cv.Point2(ball.circle.x, ball.circle.y),
+                            ball.circle.z * 1,
+                            new cv.Vec3(255, 0, 0),
+                            2
+                        );
+
+                        // center of ball
+                        mats["2D Image"].drawCircle(
+                            new cv.Point2(ball.circle.x, ball.circle.y),
+                            1,
+                            new cv.Vec3(255, 255, 0),
+                            2
+                        );
+
+                        // percentage match
+                        mats["2D Image"].putText(
+                            ball.roundedMatchPercentage * 100 + "%",
+                            new cv.Point2(ball.circle.x, ball.circle.y + ball.circle.z + 12),
+                            cv.FONT_HERSHEY_PLAIN,
+                            1,
+                            new cv.Vec3(255, 0, 0)
+                        );
+                    }
+
+                    ballTrackingsPerSecond++;
                 }
-            });
-            if (grayestCircle.circle) {
-                flatImageMat.drawCircle(
-                    new cv.Point2(grayestCircle.circle.x, grayestCircle.circle.y),
-                    grayestCircle.circle.z * 1,
-                    new cv.Vec3(255, 0, 0),
-                    2
-                );
-
-                // console.log(
-                //     "Ball identification grayness match percentage: " +
-                //         grayestCircle.roundedMatchPercentage * 100 +
-                //         "%"
-                // );
             }
 
-            retrievedMats["2D Image"] = flatImageMat;
-
-            const hsvMasks = db.getBallHSVMasks();
-            hsvMasks.forEach(hsvMask => {
-                const min = new cv.Vec3(hsvMask.min[0], hsvMask.min[1], hsvMask.min[2]);
-                const max = new cv.Vec3(hsvMask.max[0], hsvMask.max[1], hsvMask.max[2]);
-                const rangeMask = hsvFrame.inRange(min, max);
-                ballMat = flatImageMat.copyTo(ballMat || new cv.Mat(), rangeMask);
-            });
-
-            retrievedMats["Ball Mask"] = ballMat;
-
-            getActiveSections(db.getSections(), retrievedMats["Ball Mask"].bgrToGray()).then(
-                activeSections => {
-                    // only emit something if there's a change
-                    lastActiveSections = activeSections
-                        .map((matchCount, activeSectionIndex) => {
-                            if (matchCount !== undefined) {
-                                const section = db.getSection(activeSectionIndex);
-                                const zones = adjustZonesResolution(
-                                    section.zones,
-                                    backendResolution,
-                                    frontendResolution
-                                );
-
-                                return { index: activeSectionIndex, zones };
-                            }
-                            return null;
-                        })
-                        .filter(s => s !== null);
-                    capturesDoneWithinInterval++;
-                    setTimeout(fetchActiveSection, captureDelay);
-                }
-            );
+            generalTrackingsPerSecond++;
+            status.errorMessage = "";
+            setTimeout(track, captureDelay);
         } catch (e) {
-            console.warn(e);
-            setTimeout(fetchActiveSection, failedCaptureDelay);
+            errorTrackingsPerSecond++;
+            status.errorMessage = e;
+            console.err(e);
+            setTimeout(track, failedCaptureDelay);
         }
     });
 };
-fetchActiveSection();
+track();

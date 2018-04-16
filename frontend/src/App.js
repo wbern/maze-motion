@@ -61,7 +61,7 @@ class App extends Component {
             case enums.CALIBRATE:
                 return <Calibrate socket={this.socket} />;
             case enums.VIEW:
-                return <div>view</div>;
+                return <div>view!!</div>;
             default:
                 return <div>default</div>;
         }

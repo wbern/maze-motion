@@ -130,8 +130,8 @@ module.exports = (
         }
 
         const transformationMatrixMat = cv.getPerspectiveTransform(srcPoints, dstPoints);
-        return { transformationMatrixMat, maskedCornersMat };
+        return { transformationMatrixMat, maskedCornersMat, foundCorners: 4 };
     } else {
-        throw new Error("Found " + contours.length + " corners, expected 4");
+        return { transformationMatrixMat: null, maskedCornersMat: null, foundCorners: contours.length };
     }
 };

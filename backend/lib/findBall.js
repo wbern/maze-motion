@@ -8,7 +8,6 @@ module.exports = (boardImage, options) => {
         // dp: The inverse ratio of resolution
         1,
         // minDist: Minimum distance between detected centers
-        // retrievedMats["2D Image"].rows / 8,
         options.houghCircleSettings.minDist,
         // param1: Upper threshold for the internal Canny edge detector
         options.houghCircleSettings.cannyUpperThreshold,
@@ -35,12 +34,13 @@ module.exports = (boardImage, options) => {
             options.blurKernel,
             options.blurKernel
         );
+
     relevantGraynessMask = relevantGraynessMask.inRange(
-        options.ballHSVMask.min,
-        options.ballHSVMask.max
+        new (Function.prototype.bind.apply(cv.Vec3, [0].concat(options.ballHSVMask.min))),
+        new (Function.prototype.bind.apply(cv.Vec3, [0].concat(options.ballHSVMask.max)))
     );
 
-    const grayestCircle = { circle: undefined, mat: undefined, matchPercentage: 0 };
+    const foundBall = { circle: undefined, mat: undefined, matchPercentage: 0 };
     const foundCircles = circlesMat.houghCircles.apply(circlesMat, args);
 
     // iterate each circle
@@ -103,14 +103,14 @@ module.exports = (boardImage, options) => {
                 paletteCount <= options.maxPaletteCount
             ) {
                 // does this circle have more grayness than any previous circle?
-                if (matchPercentage > grayestCircle.matchPercentage) {
+                if (matchPercentage > foundBall.matchPercentage) {
                     // save references to this circle's data
-                    grayestCircle.matchPercentage = matchPercentage;
+                    foundBall.matchPercentage = matchPercentage;
                     // grayestCircle.hitMissMat = hitMissMat;
-                    grayestCircle.roundedMatchPercentage = Math.round(matchPercentage * 100) / 100;
-                    grayestCircle.mat = singleCircleWithRelevantWhitesMat;
+                    foundBall.roundedMatchPercentage = parseFloat(matchPercentage.toFixed("2"));
+                    foundBall.mat = singleCircleWithRelevantWhitesMat;
                     // restore the x to the original image x axis scale before storing the reference
-                    grayestCircle.circle = {
+                    foundBall.circle = {
                         x: circle.x,
                         y: circle.y,
                         z: circle.z / (1 - options.trimCircleEdgePercentage)
@@ -120,38 +120,5 @@ module.exports = (boardImage, options) => {
         }
     });
 
-    // visual aid
-    // const visualAid = scaledCirclesMat.cvtColor(cv.COLOR_GRAY2BGR);
-    // const drawCircle = (c) => {
-    //     visualAid.drawCircle(
-    //         new cv.Point2(c.x, c.y),
-    //         c.z * 1,
-    //         new cv.Vec3(255, 255, 0),
-    //         1
-    //     );
-    //     visualAid.drawCircle(
-    //         new cv.Point2(c.x, c.y),
-    //         1,
-    //         new cv.Vec3(255, 255, 0),
-    //         2
-    //     );
-    // };
-    // drawCircle(grayestCircle.circle);
-
-    // visualAid.drawCircle(
-    //     new cv.Point2(grayestCircle.circle.x, grayestCircle.circle.y),
-    //     grayestCircle.circle.z * 1,
-    //     new cv.Vec3(255, 255, 0),
-    //     1
-    // );
-    // visualAid.drawCircle(
-    //     new cv.Point2(grayestCircle.circle.x, grayestCircle.circle.y),
-    //     1,
-    //     new cv.Vec3(255, 255, 0),
-    //     2
-    // );
-
-    // cv.imshowWait("visualAid", visualAid);
-
-    return grayestCircle;
+    return foundBall;
 };
