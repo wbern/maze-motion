@@ -13,7 +13,7 @@ const io = require("socket.io").listen(server);
 const db = require("./db");
 
 // globals
-const settings = db.getSettings();
+let settings = db.getSettings();
 
 const captureDelay = parseInt(process.env.captureDelay || 5); // 5 is prod-recommended for now
 const failedCaptureDelay = 1000;
@@ -106,7 +106,9 @@ const clientMsg = {
     requestImage: "requestImage",
     requestCornerStatus: "requestCornerStatus",
     requestActiveSections: "requestActiveSections",
-    requestStatus: "requestStatus"
+    requestStatus: "requestStatus",
+    requestSettings: "requestSettings",
+    saveSettings: "saveSettings"
 };
 
 const serverMsg = {
@@ -115,7 +117,8 @@ const serverMsg = {
     activeImage: "activeImage",
     cornerStatus: "cornerStatus",
     activeSections: "activeSections",
-    status: "status"
+    status: "status",
+    settings: "settings"
 };
 
 // socket endpoints
@@ -128,6 +131,26 @@ io.on(clientMsg.connection, function(socket) {
             msg,
             function(data) {
                 switch (msg) {
+                case clientMsg.requestSettings:
+                    socket.emit(serverMsg.settings, db.getSettings());
+                    break;
+                case clientMsg.saveSettings:
+                    try {
+                        // parse new settings
+                        const newSettings = JSON.parse(data);
+                        // write new settings to db
+                        db.writeSettings(newSettings);
+                        // use the new settings
+                        settings = newSettings;
+                        applySettings();
+                    } catch (e) {
+                        status.errorMessage = "Invalid settings were not saved.";
+                    }
+                    
+                    // return currently used settings in runtime
+                    socket.emit(serverMsg.settings, settings);
+
+                    break;
                 case clientMsg.saveSection:
                     data.zones = adjustZonesResolution(
                         data.zones,

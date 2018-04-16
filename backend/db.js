@@ -45,6 +45,10 @@ class db {
         return this.lowdb.get("settings").value();        
     }
 
+    writeSettings(data) {
+        return this.lowdb.set("settings", data).write();       
+    }
+
     getCornerHSVMasks() {
         return this.lowdb.get("cornerHSVMasks").value();
     }

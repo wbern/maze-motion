@@ -20,11 +20,13 @@ import {
 import FontAwesome from "react-fontawesome";
 import { setGridByZones, getEmptyGrid, cloneGrid, getZonesByGrid } from "./Calibrate.functions";
 
+import jsonBeautify from "json-beautify";
+
 import "rc-color-picker/assets/index.css";
 import ColorPicker from "rc-color-picker";
 
 import ColorSelector from "./ColorSelector";
-import CameraSettings from "./CameraSettings";
+import Settings from "./Settings";
 import Statistics from "./Statistics";
 
 import "./Calibrate.css";
@@ -37,7 +39,9 @@ const clientMsg = {
     requestImage: "requestImage",
     requestCornerStatus: "requestCornerStatus",
     requestActiveSections: "requestActiveSections",
-    requestStatus: "requestStatus"
+    requestStatus: "requestStatus",
+    requestSettings: "requestSettings",
+    saveSettings: "saveSettings"
 };
 
 const serverMsg = {
@@ -49,7 +53,8 @@ const serverMsg = {
     activeImage: "activeImage",
     cornerStatus: "cornerStatus",
     activeSections: "activeSections",
-    status: "status"
+    status: "status",
+    settings: "settings"
 };
 
 class Calibrate extends Component {
@@ -110,6 +115,12 @@ class Calibrate extends Component {
                         case serverMsg.disconnect:
                             setDisconnected();
                             break;
+                        case serverMsg.settings:
+                            this.setState({
+                                stringifiedSettings: jsonBeautify(data, null, null, 60),
+                                settings: data,
+                                settingsUnsavedEdits: false
+                            });
                         case serverMsg.cornerHSVMasks:
                             this.setState({ cornerHSVMasks: data });
                             break;
@@ -152,6 +163,10 @@ class Calibrate extends Component {
 
     requestInitialData() {
         this.emitIfConnected(clientMsg.requestCornerHSVMasks);
+        if (!this.state.settingsUnsavedEdits) {
+            // grab latest settings if no changed have been made
+            this.emitIfConnected(clientMsg.requestSettings);
+        }
     }
 
     componentWillUnmount() {
@@ -456,7 +471,22 @@ class Calibrate extends Component {
                                 />
                             </Row>
                             <Row>
-                                <CameraSettings />
+                                <Settings
+                                    loadClick={() =>
+                                        this.emitIfConnected(clientMsg.requestSettings)
+                                    }
+                                    saveClick={() => this.emitIfConnected(clientMsg.saveSettings)}
+                                    stringifiedSettings={this.state.stringifiedSettings}
+                                    settings={this.state.settings}
+                                    onSettingsChange={unsavedSettings =>
+                                        this.setState({
+                                            settings: unsavedSettings,
+                                            stringifiedSettings: JSON.stringify(unsavedSettings),
+                                            settingsUnsavedEdits: true
+                                        })
+                                    }
+                                    connected={this.state.connected}
+                                />
                             </Row>
                         </Col>
                     </Row>
