@@ -121,79 +121,89 @@ const serverMsg = {
 // socket endpoints
 io.on(clientMsg.connection, function(socket) {
     console.log("a user connected");
-    socket
-        .on(clientMsg.saveSection, data => {
-            // webpage wants to save section data
-            data.zones = adjustZonesResolution(data.zones, data.resolution, settings.resolution);
-            data.zones = simplifyZones(
-                data.zones,
-                data.resolution,
-                settings.resolution,
-                frontendResolution
-            );
-            db.writeSection(data.index, data.zones);
-        })
+    Object.keys(clientMsg).forEach(key => {
+        const msg = clientMsg[key];
 
-        .on(clientMsg.requestStatus, () => {
-            const evaluatedStatus = {};
-            Object.keys(status).forEach(key => {
-                if (typeof status[key] === "function") {
-                    evaluatedStatus[key] = status[key]();
-                } else {
-                    evaluatedStatus[key] = status[key];
-                }
-            });
-
-            socket.emit(serverMsg.status, evaluatedStatus);
-        })
-
-        .on(clientMsg.loadSection, index => {
-            const section = db.getSection(index);
-            if (section) {
-                const zones = adjustZonesResolution(
-                    section.zones,
-                    settings.resolution,
-                    frontendResolution
-                );
-                socket.emit(serverMsg.loadedSection, { index, zones });
-            }
-        })
-
-        .on(clientMsg.saveCornerHSVMasks, data => {
-            db.writeCornerHSVMasks(data);
-        })
-
-        .on(clientMsg.requestCornerHSVMasks, data => {
-            socket.emit(serverMsg.cornerHSVMasks, db.getCornerHSVMasks(data));
-        })
-
-        .on(clientMsg.requestImage, data => {
-            if (data.cameraViewMode && mats[data.cameraViewMode]) {
-                socket.emit(
-                    serverMsg.activeImage,
-                    new Buffer(cv.imencode(".png", mats[data.cameraViewMode]))
-                );
-            }
-        })
-
-        .on(clientMsg.requestCornerStatus, () => status.cornerStatus())
-
-        .on(clientMsg.requestActiveSections, () => {
-            // send back active sections with respective zones
-            socket.emit(
-                serverMsg.activeSections,
-                status.activeSections.map(activeSectionIndex => {
-                    const section = db.getSection(activeSectionIndex);
-                    const zones = adjustZonesResolution(
-                        section.zones,
+        socket.on(
+            msg,
+            function(data) {
+                switch (msg) {
+                case clientMsg.saveSection:
+                    data.zones = adjustZonesResolution(
+                        data.zones,
+                        data.resolution,
+                        settings.resolution
+                    );
+                    data.zones = simplifyZones(
+                        data.zones,
+                        data.resolution,
                         settings.resolution,
                         frontendResolution
                     );
+                    db.writeSection(data.index, data.zones);
+                    break;
+                    // eslint-disable-next-line no-case-declarations
+                case clientMsg.requestStatus:
+                    const evaluatedStatus = {};
+                    Object.keys(status).forEach(key => {
+                        if (typeof status[key] === "function") {
+                            evaluatedStatus[key] = status[key]();
+                        } else {
+                            evaluatedStatus[key] = status[key];
+                        }
+                    });
 
-                    return { index: activeSectionIndex, zones };
-                })
-            );
-        });
+                    socket.emit(serverMsg.status, evaluatedStatus);
+                    break;
+                    // eslint-disable-next-line no-case-declarations
+                case clientMsg.loadSection:
+                    const index = data;
+                    const section = db.getSection(index);
+                    if (section) {
+                        const zones = adjustZonesResolution(
+                            section.zones,
+                            settings.resolution,
+                            frontendResolution
+                        );
+                        socket.emit(serverMsg.loadedSection, { index, zones });
+                    }
+                    break;
+                case clientMsg.saveCornerHSVMasks:
+                    db.writeCornerHSVMasks(data);
+                    break;
+                case clientMsg.requestCornerHSVMasks:
+                    socket.emit(serverMsg.cornerHSVMasks, db.getCornerHSVMasks(data));
+                    break;
+                case clientMsg.requestImage:
+                    if (data.cameraViewMode && mats[data.cameraViewMode]) {
+                        socket.emit(
+                            serverMsg.activeImage,
+                            new Buffer(cv.imencode(".png", mats[data.cameraViewMode]))
+                        );
+                    }
+                    break;
+                case clientMsg.requestCornerStatus:
+                    socket.emit(serverMsg.cornerStatus, status.cornerStatus());
+                    break;
+                case clientMsg.requestActiveSections:
+                    // send back active sections with respective zones
+                    socket.emit(
+                        serverMsg.activeSections,
+                        status.activeSections.map(activeSectionIndex => {
+                            const section = db.getSection(activeSectionIndex);
+                            const zones = adjustZonesResolution(
+                                section.zones,
+                                settings.resolution,
+                                frontendResolution
+                            );
+
+                            return { index: activeSectionIndex, zones };
+                        })
+                    );
+                }
+            }.bind(this)
+        );
+    });
 });
 
 const track = () => {
