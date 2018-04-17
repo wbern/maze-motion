@@ -235,15 +235,29 @@ const track = () => {
             const {
                 transformationMatrixMat,
                 maskedCornersMat,
-                foundCorners
+                foundCorners,
+                foundContours
             } = getTransformationMatrixMat(
                 mats["Image"],
-                settings.cornerIdentification.cornerHSVMasks,
+                settings.cornerIdentification,
                 settings.resolution
             );
             mats["Corners Transformation Matrix"] = transformationMatrixMat;
             mats["Corners Mask"] = maskedCornersMat;
             status.foundCorners = foundCorners;
+
+            // visual aid to show which corners were recognized
+            if (foundContours && settings.visualAid.cornerRectangles) {
+                foundContours.forEach(c => {
+                    const bounds = c.boundingRect();
+                    mats["Image"].drawRectangle(
+                        new cv.Point2(bounds.x, bounds.y),
+                        new cv.Point2(bounds.x + bounds.width, bounds.y + bounds.height),
+                        new cv.Vec(255, 0, 0),
+                        2
+                    );
+                });
+            }
 
             if (mats["Corners Transformation Matrix"]) {
                 status.cornerIdentificationFailCount = 0;
@@ -254,21 +268,12 @@ const track = () => {
 
             if (mats["Corners Transformation Matrix"]) {
                 // we have the 2D transformation matrix, make the board 2D
-                mats["2D Image"] = mats["Image"]
-                    .warpPerspective(
-                        mats["Corners Transformation Matrix"],
-                        new cv.Size(settings.resolution.width, settings.resolution.height),
-                        // http://tanbakuchi.com/posts/comparison-of-openv-interpolation-algorithms/#Upsampling-comparison
-                        cv.INTER_CUBIC
-                    )
-                    // resize the board from square to whatever ratio is defined in settings (x usually 1.3)
-                    .resize(
-                        settings.resolution.height * settings.boardYScale,
-                        settings.resolution.width * settings.boardXScale
-                    )
-                    .getRegion(
-                        new cv.Rect(0, 0, settings.resolution.width, settings.resolution.height)
-                    );
+                mats["2D Image"] = mats["Image"].warpPerspective(
+                    mats["Corners Transformation Matrix"],
+                    new cv.Size(settings.resolution.width, settings.resolution.height),
+                    // http://tanbakuchi.com/posts/comparison-of-openv-interpolation-algorithms/#Upsampling-comparison
+                    cv.INTER_CUBIC
+                );
 
                 const sections = db.getSections();
 

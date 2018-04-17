@@ -1,6 +1,6 @@
 const cv = require("opencv4nodejs");
 
-const getCorners = (contours, cornerOffset) => {
+const getCorners = (contours, cornerPadding) => {
     const bounds = contours.map(c => c.boundingRect());
 
     const centeredValue = (axisValue, sizeValue) => axisValue + sizeValue / 2;
@@ -30,40 +30,33 @@ const getCorners = (contours, cornerOffset) => {
     return [
         // top-left
         new cv.Point(
-            centeredValue(topLeft.x, topLeft.width) - cornerOffset,
-            centeredValue(topLeft.y, topLeft.height) - cornerOffset
+            centeredValue(topLeft.x, topLeft.width) - cornerPadding,
+            centeredValue(topLeft.y, topLeft.height) - cornerPadding
         ),
         // top-right
         new cv.Point(
-            centeredValue(topRight.x, topRight.width) + cornerOffset,
-            centeredValue(topRight.y, topRight.height) - cornerOffset
+            centeredValue(topRight.x, topRight.width) + cornerPadding,
+            centeredValue(topRight.y, topRight.height) - cornerPadding
         ),
         // bottom-right
         new cv.Point(
-            centeredValue(bottomRight.x, bottomRight.width) + cornerOffset,
-            centeredValue(bottomRight.y, bottomRight.height) + cornerOffset
+            centeredValue(bottomRight.x, bottomRight.width) + cornerPadding,
+            centeredValue(bottomRight.y, bottomRight.height) + cornerPadding
         ),
         // bottom-left
         new cv.Point(
-            centeredValue(bottomLeft.x, bottomLeft.width) - cornerOffset,
-            centeredValue(bottomLeft.y, bottomLeft.height) + cornerOffset
+            centeredValue(bottomLeft.x, bottomLeft.width) - cornerPadding,
+            centeredValue(bottomLeft.y, bottomLeft.height) + cornerPadding
         )
     ];
 };
 
-module.exports = (
-    imageMat,
-    cornerHSVMasks,
-    targetResolution,
-    cornerOffset = 5,
-    erodePixels = 0,
-    rotations = 3
-) => {
+module.exports = (imageMat, options, targetResolution) => {
     const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
     let maskedCornersMat;
 
     // get the colors matching the corner colors
-    cornerHSVMasks.forEach(hsvMask => {
+    options.cornerHSVMasks.forEach(hsvMask => {
         const min = new cv.Vec3(hsvMask.min[0], hsvMask.min[1], hsvMask.min[2]);
         const max = new cv.Vec3(hsvMask.max[0], hsvMask.max[1], hsvMask.max[2]);
         const rangeMask = hsvFrame.inRange(min, max);
@@ -72,15 +65,15 @@ module.exports = (
 
     // get the contours of the corners
     maskedCornersMat = maskedCornersMat.cvtColor(cv.COLOR_BGR2GRAY);
-    if (erodePixels && erodePixels > 0) {
+    if (options.erodePixels && options.erodePixels > 0) {
         maskedCornersMat = maskedCornersMat.erode(
-            new cv.Mat(Array(erodePixels).fill([255, 255, 255]), cv.CV_8U)
+            new cv.Mat(Array(options.erodePixels).fill([255, 255, 255]), cv.CV_8U)
         );
     }
 
     const mode = cv.RETR_EXTERNAL;
     const findContoursMethod = cv.CHAIN_APPROX_NONE;
-    let contours = maskedCornersMat.findContours(mode, findContoursMethod);
+    let foundContours = maskedCornersMat.findContours(mode, findContoursMethod);
 
     const getContourDimensions = (c, outlineMargin = 0) => {
         const d = c.boundingRect();
@@ -94,7 +87,7 @@ module.exports = (
     };
 
     // draw rectangles around each contour to absorb smaller neighbouring contours in broken scans
-    contours.forEach(c => {
+    foundContours.forEach(c => {
         const points = getContourDimensions(c, 2);
         maskedCornersMat.drawRectangle(
             points.topLeft,
@@ -104,11 +97,11 @@ module.exports = (
         );
     });
     // afterwards, renew the contours found for more clarity
-    contours = maskedCornersMat.findContours(mode, findContoursMethod);
+    foundContours = maskedCornersMat.findContours(mode, findContoursMethod);
 
-    if (contours.length === 4) {
+    if (foundContours.length === 4) {
         // we have the right amount of contours for each corner, continue
-        const srcPoints = getCorners(contours, cornerOffset);
+        const srcPoints = getCorners(foundContours, options.cornerPadding);
 
         const minRes = Math.min(targetResolution.height, targetResolution.width);
 
@@ -116,22 +109,32 @@ module.exports = (
         const width = minRes;
         const height = minRes;
 
+        const pad = options.boardPadding * -1;
+
         // make the destination points, with scaling
-        const topLeft = new cv.Point(0, 0);
-        const topRight = new cv.Point(width, 0);
-        const bottomRight = new cv.Point(width, height);
-        const bottomLeft = new cv.Point(0, height);
+        const topLeft = new cv.Point(0 - pad, 0 - pad);
+        const topRight = new cv.Point(width * options.xScale + pad, 0 - pad);
+        const bottomRight = new cv.Point(
+            width * options.xScale + pad,
+            height * options.yScale + pad
+        );
+        const bottomLeft = new cv.Point(0 - pad, height * options.yScale + pad);
 
         const dstPoints = [topLeft, topRight, bottomRight, bottomLeft];
 
         // do rotations
-        for (let i = 0; i < rotations; i++) {
+        for (let i = 0; i < options.rotations; i++) {
             dstPoints.unshift(dstPoints.pop());
         }
 
         const transformationMatrixMat = cv.getPerspectiveTransform(srcPoints, dstPoints);
-        return { transformationMatrixMat, maskedCornersMat, foundCorners: 4 };
+        return { transformationMatrixMat, maskedCornersMat, foundCorners: foundContours.length, foundContours };
     } else {
-        return { transformationMatrixMat: null, maskedCornersMat: null, foundCorners: contours.length };
+        return {
+            transformationMatrixMat: null,
+            maskedCornersMat,
+            foundCorners: foundContours.length,
+            foundContours
+        };
     }
 };

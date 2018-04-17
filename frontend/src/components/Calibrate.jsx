@@ -331,25 +331,21 @@ class Calibrate extends Component {
                     <Row>
                         <Col xs={7}>
                             <Row>
-                                <Col xs={7} xsOffset={1}>
-                                    <FormGroup>
-                                        <InputGroup className="specificSizedInputGroup">
-                                            <InputGroup.Addon
-                                                className="specificSizedInputGroupItems"
-                                                style={{ lineHeight: 0 }}
-                                            >
-                                                Section
-                                            </InputGroup.Addon>
-                                            <FormControl
-                                                type="number"
-                                                className="specificSizedInputGroupItems"
-                                                name="sectionIndex"
-                                                onChange={this.sectionIndexChange}
-                                                max="61"
-                                                min="0"
-                                                value={this.state.sectionIndexInputValue}
-                                            />
-                                            <DropdownButton
+                                <Form horizontal inline>
+                                    <InputGroup>
+                                        <InputGroup.Addon style={{ lineHeight: 0 }}>
+                                            Section
+                                        </InputGroup.Addon>
+                                        <FormControl
+                                            type="number"
+                                            name="sectionIndex"
+                                            onChange={this.sectionIndexChange}
+                                            onFocus={e => e.target.select()}
+                                            max="61"
+                                            min="0"
+                                            value={this.state.sectionIndexInputValue}
+                                        />
+                                        {/* <DropdownButton
                                                 componentClass={InputGroup.Button}
                                                 className="specificSizedInputGroupItems"
                                                 id="input-dropdown-addon"
@@ -361,28 +357,27 @@ class Calibrate extends Component {
                                                 <MenuItem key="Save" onClick={this.onGridSaveClick}>
                                                     Save
                                                 </MenuItem>
-                                            </DropdownButton>
-                                        </InputGroup>
-                                    </FormGroup>
-                                </Col>
-                                <Col xs={3}>
-                                    <Form>
-                                        <InputGroup
-                                            className="specificSizedInputGroup"
-                                            style={{ width: "100%" }}
+                                            </DropdownButton> */}
+                                    </InputGroup>
+                                    <InputGroup>
+                                        <Button key="Load" onClick={this.onGridLoadClick}>
+                                            Load
+                                        </Button>
+                                        <Button key="Save" onClick={this.onGridSaveClick}>
+                                            Save
+                                        </Button>
+                                    </InputGroup>
+
+                                    <InputGroup>
+                                        <Button
+                                            type="button"
+                                            onClick={this.onGridClearClick}
+                                            value="Clear"
                                         >
-                                            <Button
-                                                type="button"
-                                                className="specificSizedInputGroupItems"
-                                                style={{ width: "100%" }}
-                                                onClick={this.onGridClearClick}
-                                                value="Clear"
-                                            >
-                                                Clear Current Selection
-                                            </Button>
-                                        </InputGroup>
-                                    </Form>
-                                </Col>
+                                            Clear Current Selection
+                                        </Button>
+                                    </InputGroup>
+                                </Form>
                             </Row>
                             <Row className="imageWrapper">
                                 <div className="imageContainer">
@@ -437,68 +432,68 @@ class Calibrate extends Component {
                             </Row>
                             <Row style={{ marginTop: "15px" }}>
                                 <Col xs={12}>
-                                        <Form inline horizontal>
-                                            <Col xs={8}>
-                                                <InputGroup className="specificSizedInputGroup">
-                                                    <InputGroup.Addon
-                                                        className="specificSizedInputGroupItems"
-                                                        style={{ lineHeight: 0 }}
-                                                    >
-                                                        Camera Mode
-                                                    </InputGroup.Addon>
-                                                    <FormControl
-                                                        type="text"
-                                                        disabled
-                                                        className="specificSizedInputGroupItems"
-                                                        value={this.state.cameraViewMode}
-                                                    />
-                                                    <DropdownButton
-                                                        componentClass={InputGroup.Button}
-                                                        className="specificSizedInputGroupItems"
-                                                        id="input-dropdown-addon"
-                                                        title="Change"
-                                                    >
-                                                        {this.state.availableCameraViewModes.map(
-                                                            name => (
-                                                                <MenuItem
-                                                                    key={name}
-                                                                    onClick={() =>
-                                                                        this.setState({
-                                                                            cameraViewMode: name
-                                                                        })
-                                                                    }
-                                                                >
-                                                                    {name}
-                                                                </MenuItem>
-                                                            )
-                                                        )}
-                                                    </DropdownButton>
-                                                </InputGroup>
-                                            </Col>
-                                            <Col xs={4}>
-                                                <InputGroup className="specificSizedInputGroup">
-                                                    <InputGroup.Addon className="specificSizedInputGroupItems">
-                                                        Frame skips
-                                                    </InputGroup.Addon>
+                                    <Form inline horizontal>
+                                        <Col xs={8}>
+                                            <InputGroup className="specificSizedInputGroup">
+                                                <InputGroup.Addon
+                                                    className="specificSizedInputGroupItems"
+                                                    style={{ lineHeight: 0 }}
+                                                >
+                                                    Camera Mode
+                                                </InputGroup.Addon>
+                                                <FormControl
+                                                    type="text"
+                                                    disabled
+                                                    className="specificSizedInputGroupItems"
+                                                    value={this.state.cameraViewMode}
+                                                />
+                                                <DropdownButton
+                                                    componentClass={InputGroup.Button}
+                                                    className="specificSizedInputGroupItems"
+                                                    id="input-dropdown-addon"
+                                                    title="Change"
+                                                >
+                                                    {this.state.availableCameraViewModes.map(
+                                                        name => (
+                                                            <MenuItem
+                                                                key={name}
+                                                                onClick={() =>
+                                                                    this.setState({
+                                                                        cameraViewMode: name
+                                                                    })
+                                                                }
+                                                            >
+                                                                {name}
+                                                            </MenuItem>
+                                                        )
+                                                    )}
+                                                </DropdownButton>
+                                            </InputGroup>
+                                        </Col>
+                                        <Col xs={4}>
+                                            <InputGroup className="specificSizedInputGroup">
+                                                <InputGroup.Addon className="specificSizedInputGroupItems">
+                                                    Frame skips
+                                                </InputGroup.Addon>
 
-                                                    <FormControl
-                                                        type="number"
-                                                        className="specificSizedInputGroupItems"
-                                                        value={this.state.cameraFrameSkips}
-                                                        min="0"
-                                                        max="100"
-                                                        onChange={e => {
-                                                            this.setState({
-                                                                cameraFrameSkips: Math.min(
-                                                                    Math.max(e.target.value, 0),
-                                                                    100
-                                                                )
-                                                            });
-                                                        }}
-                                                    />
-                                                </InputGroup>
-                                            </Col>
-                                        </Form>
+                                                <FormControl
+                                                    type="number"
+                                                    className="specificSizedInputGroupItems"
+                                                    value={this.state.cameraFrameSkips}
+                                                    min="0"
+                                                    max="100"
+                                                    onChange={e => {
+                                                        this.setState({
+                                                            cameraFrameSkips: Math.min(
+                                                                Math.max(e.target.value, 0),
+                                                                100
+                                                            )
+                                                        });
+                                                    }}
+                                                />
+                                            </InputGroup>
+                                        </Col>
+                                    </Form>
                                 </Col>
                             </Row>
                         </Col>

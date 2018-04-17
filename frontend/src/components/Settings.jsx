@@ -13,10 +13,19 @@ export class Settings extends React.Component {
     shouldComponentUpdate(nextProps) {
         // if we re-render while an input is in focus in the editor
         // the cursor gets moved all the way to the left. it's annoying.
-        return (
+        const relevantChangesMade =
             this.props.connected !== nextProps.connected ||
-            this.props.settingsLastRetrieved !== nextProps.settingsLastRetrieved
-        );
+            this.props.settingsLastRetrieved !== nextProps.settingsLastRetrieved;
+
+        // it's also annoying that the options tree gets collapsed when you save a value
+        // so don't renew the component if the new settings are exactly like the existing one
+        let stillSameSettings;
+        if (relevantChangesMade) {
+            stillSameSettings =
+                JSON.stringify(this.props.settings) === JSON.stringify(nextProps.settings);
+        }
+
+        return relevantChangesMade && !stillSameSettings;
     }
 
     render() {
