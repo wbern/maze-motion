@@ -1,30 +1,22 @@
 import React from "react";
-import {
-    Panel,
-    Form,
-    FormGroup,
-    Row,
-    Col,
-    FormControl,
-    Button,
-    ControlLabel
-} from "react-bootstrap";
+import { Panel, Form, FormGroup, Col, Button } from "react-bootstrap";
+
+import { JsonEditor as Editor } from "jsoneditor-react";
+import "jsoneditor-react/es/editor.min.css";
+import Ajv from "ajv";
+
+import "./Settings.css";
+
+const ajv = new Ajv({ allErrors: true, verbose: true });
 
 export class Settings extends React.Component {
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            settingsText: ""
-        };
-    }
-
-    componentWillMount() {}
-
-    componentDidMount() {}
-
     shouldComponentUpdate(nextProps) {
-        return nextProps.stringifiedSettings !== this.props.stringifiedSettings;
+        // if we re-render while an input is in focus in the editor
+        // the cursor gets moved all the way to the left. it's annoying.
+        return (
+            this.props.connected !== nextProps.connected ||
+            this.props.settingsLastRetrieved !== nextProps.settingsLastRetrieved
+        );
     }
 
     render() {
@@ -36,17 +28,17 @@ export class Settings extends React.Component {
                 <Panel.Body>
                     <Form horizontal onSubmit={e => e.preventDefault()}>
                         <FormGroup>
-                            <Col xs={12}>
-                                <FormControl
-                                    componentClass="textarea"
-                                    onChange={e => {
-                                        try {
-                                            const json = JSON.parse(e.target.value);
-                                            this.props.onSettingsChange(e.target.value);
-                                        } catch (e) {}
-                                    }}
-                                    value={this.props.stringifiedSettings}
-                                />
+                            <Col xs={12} className="editorContainer">
+                                {[
+                                    <Editor
+                                        key={this.props.settingsLastRetrieved || 0}
+                                        mode="form"
+                                        value={this.props.settings}
+                                        schema={this.props.settings && this.props.settings._schema}
+                                        ajv={ajv}
+                                        onChange={this.props.onSettingsChange}
+                                    />
+                                ]}
                             </Col>
                         </FormGroup>
                         <FormGroup>

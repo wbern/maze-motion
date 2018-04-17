@@ -5,27 +5,14 @@ import {
     Row,
     Col,
     FormControl,
-    Checkbox,
-    Panel,
     FormGroup,
     InputGroup,
     DropdownButton,
     MenuItem,
-    Form,
-    ControlLabel,
-    PageHeader,
-    ListGroup,
-    ListGroupItem
+    Form
 } from "react-bootstrap";
-import FontAwesome from "react-fontawesome";
 import { setGridByZones, getEmptyGrid, cloneGrid, getZonesByGrid } from "./Calibrate.functions";
 
-import jsonBeautify from "json-beautify";
-
-import "rc-color-picker/assets/index.css";
-import ColorPicker from "rc-color-picker";
-
-import ColorSelector from "./ColorSelector";
 import Settings from "./Settings";
 import Statistics from "./Statistics";
 
@@ -34,8 +21,6 @@ import "./Calibrate.css";
 const clientMsg = {
     saveSection: "saveSection",
     loadSection: "loadSection",
-    saveCornerHSVMasks: "saveCornerHSVMasks",
-    requestCornerHSVMasks: "requestCornerHSVMasks",
     requestImage: "requestImage",
     requestCornerStatus: "requestCornerStatus",
     requestActiveSections: "requestActiveSections",
@@ -49,7 +34,6 @@ const serverMsg = {
     connect: "connect",
     connection: "connection",
     loadedSection: "loadedSection",
-    cornerHSVMasks: "cornerHSVMasks",
     activeImage: "activeImage",
     cornerStatus: "cornerStatus",
     activeSections: "activeSections",
@@ -64,7 +48,7 @@ class Calibrate extends Component {
         this.state = {
             lastActiveSections: null,
             sectionIndexInputValue: 1,
-            cameraFrameSkips: 1,
+            cameraFrameSkips: 5,
             cameraViewMode: "2D Image",
             availableCameraViewModes: [
                 "2D Image",
@@ -117,12 +101,10 @@ class Calibrate extends Component {
                             break;
                         case serverMsg.settings:
                             this.setState({
-                                stringifiedSettings: jsonBeautify(data, null, null, 60),
                                 settings: data,
-                                settingsUnsavedEdits: false
+                                settingsUnsavedEdits: false,
+                                settingsLastRetrieved: new Date().toString()
                             });
-                        case serverMsg.cornerHSVMasks:
-                            this.setState({ cornerHSVMasks: data });
                             break;
                         case serverMsg.status:
                             this.setState({ status: data });
@@ -148,6 +130,9 @@ class Calibrate extends Component {
                                     );
                                 });
                             }
+                            break;
+                        default:
+                            break;
                     }
                 }.bind(this)
             );
@@ -156,13 +141,12 @@ class Calibrate extends Component {
 
     unsubscribe() {
         Object.keys(serverMsg).forEach(key => {
-            const msg = msg[key];
+            const msg = serverMsg[key];
             this.props.socket.off(msg);
         });
     }
 
     requestInitialData() {
-        this.emitIfConnected(clientMsg.requestCornerHSVMasks);
         if (!this.state.settingsUnsavedEdits) {
             // grab latest settings if no changed have been made
             this.emitIfConnected(clientMsg.requestSettings);
@@ -340,12 +324,6 @@ class Calibrate extends Component {
         }
     }
 
-    saveHsvMaskRanges(maskName, ranges) {
-        if (maskName === "cornerHSVMasks") {
-            this.emitIfConnected(clientMsg.saveCornerHSVMasks, ranges);
-        }
-    }
-
     render() {
         return (
             <div className="calibrate">
@@ -400,7 +378,7 @@ class Calibrate extends Component {
                                                 onClick={this.onGridClearClick}
                                                 value="Clear"
                                             >
-                                                Clear
+                                                Clear Current Selection
                                             </Button>
                                         </InputGroup>
                                     </Form>
@@ -416,6 +394,7 @@ class Calibrate extends Component {
                                             URL.revokeObjectURL(e.target.src);
                                         }}
                                         className="image"
+                                        alt=""
                                     />
                                     <div className="grid">
                                         {this.grid &&
@@ -457,6 +436,72 @@ class Calibrate extends Component {
                                     </div>
                                 </div>
                             </Row>
+                            <Row style={{ marginTop: "15px" }}>
+                                <Col xs={12}>
+                                        <Form inline horizontal>
+                                            <Col xs={8}>
+                                                <InputGroup className="specificSizedInputGroup">
+                                                    <InputGroup.Addon
+                                                        className="specificSizedInputGroupItems"
+                                                        style={{ lineHeight: 0 }}
+                                                    >
+                                                        Camera Mode
+                                                    </InputGroup.Addon>
+                                                    <FormControl
+                                                        type="text"
+                                                        disabled
+                                                        className="specificSizedInputGroupItems"
+                                                        value={this.state.cameraViewMode}
+                                                    />
+                                                    <DropdownButton
+                                                        componentClass={InputGroup.Button}
+                                                        className="specificSizedInputGroupItems"
+                                                        id="input-dropdown-addon"
+                                                        title="Change"
+                                                    >
+                                                        {this.state.availableCameraViewModes.map(
+                                                            name => (
+                                                                <MenuItem
+                                                                    key={name}
+                                                                    onClick={() =>
+                                                                        this.setState({
+                                                                            cameraViewMode: name
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    {name}
+                                                                </MenuItem>
+                                                            )
+                                                        )}
+                                                    </DropdownButton>
+                                                </InputGroup>
+                                            </Col>
+                                            <Col xs={4}>
+                                                <InputGroup className="specificSizedInputGroup">
+                                                    <InputGroup.Addon className="specificSizedInputGroupItems">
+                                                        Frame skips
+                                                    </InputGroup.Addon>
+
+                                                    <FormControl
+                                                        type="number"
+                                                        className="specificSizedInputGroupItems"
+                                                        value={this.state.cameraFrameSkips}
+                                                        min="0"
+                                                        max="100"
+                                                        onChange={e => {
+                                                            this.setState({
+                                                                cameraFrameSkips: Math.min(
+                                                                    Math.max(e.target.value, 0),
+                                                                    100
+                                                                )
+                                                            });
+                                                        }}
+                                                    />
+                                                </InputGroup>
+                                            </Col>
+                                        </Form>
+                                </Col>
+                            </Row>
                         </Col>
                         <Col xs={5}>
                             <Row>
@@ -475,105 +520,24 @@ class Calibrate extends Component {
                                     loadClick={() =>
                                         this.emitIfConnected(clientMsg.requestSettings)
                                     }
-                                    saveClick={() => this.emitIfConnected(clientMsg.saveSettings)}
-                                    stringifiedSettings={this.state.stringifiedSettings}
+                                    saveClick={() =>
+                                        this.emitIfConnected(
+                                            clientMsg.saveSettings,
+                                            this.state.settings
+                                        )
+                                    }
                                     settings={this.state.settings}
+                                    settingsLastRetrieved={this.state.settingsLastRetrieved}
+                                    settingsUnsavedEdits={this.state.settingsUnsavedEdits}
                                     onSettingsChange={unsavedSettings =>
                                         this.setState({
                                             settings: unsavedSettings,
-                                            stringifiedSettings: JSON.stringify(unsavedSettings),
                                             settingsUnsavedEdits: true
                                         })
                                     }
                                     connected={this.state.connected}
                                 />
                             </Row>
-                        </Col>
-                    </Row>
-                    <Row style={{ marginTop: "15px" }}>
-                        <Col xs={12}>
-                            <Col xs={7}>
-                                <Form inline horizontal>
-                                    <Col xs={8}>
-                                        <InputGroup className="specificSizedInputGroup">
-                                            <InputGroup.Addon
-                                                className="specificSizedInputGroupItems"
-                                                style={{ lineHeight: 0 }}
-                                            >
-                                                Camera Mode
-                                            </InputGroup.Addon>
-                                            <FormControl
-                                                type="text"
-                                                disabled
-                                                className="specificSizedInputGroupItems"
-                                                value={this.state.cameraViewMode}
-                                            />
-                                            <DropdownButton
-                                                componentClass={InputGroup.Button}
-                                                className="specificSizedInputGroupItems"
-                                                id="input-dropdown-addon"
-                                                title="Change"
-                                            >
-                                                {this.state.availableCameraViewModes.map(name => (
-                                                    <MenuItem
-                                                        key={name}
-                                                        onClick={() =>
-                                                            this.setState({
-                                                                cameraViewMode: name
-                                                            })
-                                                        }
-                                                    >
-                                                        {name}
-                                                    </MenuItem>
-                                                ))}
-                                            </DropdownButton>
-                                        </InputGroup>
-                                    </Col>
-                                    <Col xs={4}>
-                                        <InputGroup className="specificSizedInputGroup">
-                                            <InputGroup.Addon className="specificSizedInputGroupItems">
-                                                Frame skips
-                                            </InputGroup.Addon>
-
-                                            <FormControl
-                                                type="number"
-                                                className="specificSizedInputGroupItems"
-                                                value={this.state.cameraFrameSkips}
-                                                min="0"
-                                                max="100"
-                                                onChange={e => {
-                                                    this.setState({
-                                                        cameraFrameSkips: Math.min(
-                                                            Math.max(e.target.value, 0),
-                                                            100
-                                                        )
-                                                    });
-                                                }}
-                                            />
-                                        </InputGroup>
-                                    </Col>
-                                </Form>
-                            </Col>
-                            {/* <Col xs={5} xsOffset={2}>
-                            <ColorSelector textLabel="Ball Color Ranges" />
-                        </Col> */}
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col xs={12}>
-                            <h1 className="text-left">Color Calibration</h1>
-                            <Col xs={7}>
-                                <ColorSelector
-                                    onChange={ranges =>
-                                        this.saveHsvMaskRanges("cornerHSVMasks", ranges)
-                                    }
-                                    defaultItems={this.state.cornerHSVMasks}
-                                    textLabel="Corner Color Ranges"
-                                />
-                            </Col>
-                            {/* <Col xs={5} xsOffset={2}>
-                            <ColorSelector textLabel="Ball Color Ranges" />
-                        </Col> */}
                         </Col>
                     </Row>
                 </Grid>

@@ -5,19 +5,7 @@ import {
     Nav,
     Navbar,
     NavItem,
-    NavDropdown,
-    Grid,
-    Button,
-    Row,
-    Col,
-    FormControl,
-    Checkbox,
-    Panel,
-    FormGroup,
-    InputGroup,
-    DropdownButton,
-    MenuItem,
-    Form
+    Row
 } from "react-bootstrap";
 
 // import logo from "./logo.svg";

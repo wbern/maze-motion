@@ -3,9 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "color-convert": "^1.9.1",
-    "json-beautify": "^1.0.1",
-    "rc-color-picker": "^1.2.6",
+    "ajv": "^6.4.0",
+    "jsoneditor-react": "^0.1.9",
     "react": "^16.2.0",
     "react-bootstrap": "^0.32.1",
     "react-dom": "^16.2.0",

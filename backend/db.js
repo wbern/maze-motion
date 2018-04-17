@@ -49,13 +49,13 @@ class db {
         return this.lowdb.set("settings", data).write();       
     }
 
-    getCornerHSVMasks() {
-        return this.lowdb.get("cornerHSVMasks").value();
-    }
+    // getCornerHSVMasks() {
+    //     return this.lowdb.get("cornerHSVMasks").value();
+    // }
 
-    writeCornerHSVMasks(data) {
-        return this.lowdb.set("cornerHSVMasks", data).write();
-    }
+    // writeCornerHSVMasks(data) {
+    //     return this.lowdb.set("cornerHSVMasks", data).write();
+    // }
 
     getBallHSVMasks() {
         return this.lowdb.get("ballHSVMasks").value();

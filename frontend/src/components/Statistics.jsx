@@ -1,6 +1,6 @@
 import React from "react";
 import FontAwesome from "react-fontawesome";
-import { Row, Panel, Form, FormGroup, Col, FormControl, ControlLabel } from "react-bootstrap";
+import { Row, Panel, Col, ControlLabel } from "react-bootstrap";
 
 export class Statistics extends React.Component {
     componentWillMount() {}
@@ -22,7 +22,7 @@ export class Statistics extends React.Component {
 
     renderItem(header, text, level = 0) {
         return (
-            <Row>
+            <Row key={header + level}>
                 <Col
                     className="text-right"
                     componentClass={ControlLabel}

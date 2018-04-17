@@ -119,6 +119,16 @@
   "users": {},
   "playcounts": 0,
   "settings": {
+    "_schema": {
+      "type": "object",
+      "properties": {
+        "cameraContrast": {
+          "title": "Example Schema",
+          "type": "number",
+          "description": "Sets contrast on the camera"
+        }
+      }
+    },
     "resolution": {
       "width": 640,
       "height": 480
@@ -132,6 +142,22 @@
     "boardYScale": 1,
     "sectionIdentification": {
       "threshold": 30
+    },
+    "cornerIdentification": {
+      "cornerHSVMasks": [
+        {
+          "min": [
+            130,
+            203,
+            100
+          ],
+          "max": [
+            162,
+            252,
+            255
+          ]
+        }
+      ]
     },
     "visualAid": {
       "ballCircle": true
@@ -167,6 +193,20 @@
       ]
     }
   },
+  "cornerHSVMasks": [
+    {
+      "min": [
+        16,
+        86,
+        125
+      ],
+      "max": [
+        60,
+        255,
+        255
+      ]
+    }
+  ],
   "ballHSVMasks": [
     {
       "min": [
@@ -177,20 +217,6 @@
       "max": [
         100,
         255,
-        255
-      ]
-    }
-  ],
-  "cornerHSVMasks": [
-    {
-      "min": [
-        130,
-        203,
-        100
-      ],
-      "max": [
-        162,
-        252,
         255
       ]
     }

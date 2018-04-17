@@ -101,8 +101,6 @@ const clientMsg = {
     connection: "connection",
     saveSection: "saveSection",
     loadSection: "loadSection",
-    saveCornerHSVMasks: "saveCornerHSVMasks",
-    requestCornerHSVMasks: "requestCornerHSVMasks",
     requestImage: "requestImage",
     requestCornerStatus: "requestCornerStatus",
     requestActiveSections: "requestActiveSections",
@@ -113,7 +111,6 @@ const clientMsg = {
 
 const serverMsg = {
     loadedSection: "loadedSection",
-    cornerHSVMasks: "cornerHSVMasks",
     activeImage: "activeImage",
     cornerStatus: "cornerStatus",
     activeSections: "activeSections",
@@ -137,7 +134,7 @@ io.on(clientMsg.connection, function(socket) {
                 case clientMsg.saveSettings:
                     try {
                         // parse new settings
-                        const newSettings = JSON.parse(data);
+                        const newSettings = data;
                         // write new settings to db
                         db.writeSettings(newSettings);
                         // use the new settings
@@ -146,7 +143,7 @@ io.on(clientMsg.connection, function(socket) {
                     } catch (e) {
                         status.errorMessage = "Invalid settings were not saved.";
                     }
-                    
+
                     // return currently used settings in runtime
                     socket.emit(serverMsg.settings, settings);
 
@@ -191,12 +188,6 @@ io.on(clientMsg.connection, function(socket) {
                         socket.emit(serverMsg.loadedSection, { index, zones });
                     }
                     break;
-                case clientMsg.saveCornerHSVMasks:
-                    db.writeCornerHSVMasks(data);
-                    break;
-                case clientMsg.requestCornerHSVMasks:
-                    socket.emit(serverMsg.cornerHSVMasks, db.getCornerHSVMasks(data));
-                    break;
                 case clientMsg.requestImage:
                     if (data.cameraViewMode && mats[data.cameraViewMode]) {
                         socket.emit(
@@ -204,9 +195,6 @@ io.on(clientMsg.connection, function(socket) {
                             new Buffer(cv.imencode(".png", mats[data.cameraViewMode]))
                         );
                     }
-                    break;
-                case clientMsg.requestCornerStatus:
-                    socket.emit(serverMsg.cornerStatus, status.cornerStatus());
                     break;
                 case clientMsg.requestActiveSections:
                     // send back active sections with respective zones
@@ -241,7 +229,7 @@ const track = () => {
                 foundCorners
             } = getTransformationMatrixMat(
                 mats["Image"],
-                db.getCornerHSVMasks(),
+                settings.cornerIdentification.cornerHSVMasks,
                 settings.resolution
             );
             mats["Corners Transformation Matrix"] = transformationMatrixMat;
