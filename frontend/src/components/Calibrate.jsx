@@ -331,7 +331,7 @@ class Calibrate extends Component {
                     <Row>
                         <Col xs={7}>
                             <Row>
-                                <Col xs={4} xsOffset={1}>
+                                <Col xs={7} xsOffset={1}>
                                     <FormGroup>
                                         <InputGroup className="specificSizedInputGroup">
                                             <InputGroup.Addon
@@ -365,7 +365,7 @@ class Calibrate extends Component {
                                         </InputGroup>
                                     </FormGroup>
                                 </Col>
-                                <Col xs={2}>
+                                <Col xs={3}>
                                     <Form>
                                         <InputGroup
                                             className="specificSizedInputGroup"
@@ -383,7 +383,6 @@ class Calibrate extends Component {
                                         </InputGroup>
                                     </Form>
                                 </Col>
-                                <Col xs={4} />
                             </Row>
                             <Row className="imageWrapper">
                                 <div className="imageContainer">

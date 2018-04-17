@@ -99,6 +99,7 @@ setInterval(() => {
 
 const clientMsg = {
     connection: "connection",
+    disconnect: "disconnect",
     saveSection: "saveSection",
     loadSection: "loadSection",
     requestImage: "requestImage",
@@ -128,6 +129,14 @@ io.on(clientMsg.connection, function(socket) {
             msg,
             function(data) {
                 switch (msg) {
+                case clientMsg.disconnect:
+                    socket.removeAllListeners();
+                    socket.disconnect();
+                    // Object.keys(clientMsg).forEach(key => {
+                    //     const msg = clientMsg[key];
+                    //     socket.off(msg);
+                    // })
+                    break;
                 case clientMsg.requestSettings:
                     socket.emit(serverMsg.settings, db.getSettings());
                     break;
