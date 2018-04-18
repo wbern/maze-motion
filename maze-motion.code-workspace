@@ -4,6 +4,9 @@
 			"path": "backend"
 		},
 		{
+			"path": "backend-game"
+		},
+		{
 			"path": "frontend"
 		}
 	],
