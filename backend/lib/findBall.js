@@ -83,7 +83,7 @@ module.exports = (boardImage, sections, options) => {
 
     // iterate each circle
     // check if it contains a lot of non-black/dark
-    // record it as "grayestCircle".
+    // record it as "foundBall".
 
     // visual aid
     foundCircles.forEach(circle => {

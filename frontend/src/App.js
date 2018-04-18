@@ -8,7 +8,6 @@ import {
     Row
 } from "react-bootstrap";
 
-// import logo from "./logo.svg";
 import "./App.css";
 
 import Calibrate from "./components/Calibrate";
@@ -25,18 +24,11 @@ class App extends Component {
         this.state = {
             view: enums.CALIBRATE
         };
-
-        // this.loadedActiveSection = this.loadedActiveSection.bind(this);
     }
 
     componentWillMount() {
         this.socket = openSocket("http://localhost:8080");
-        // this.socket.on("activeSection", this.loadedActiveSection);
     }
-
-    // loadedActiveSection(activeSection) {
-    //     this.setState({ activeSection });
-    // }
 
     setView(view) {
         this.setState({

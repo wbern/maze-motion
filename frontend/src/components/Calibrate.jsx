@@ -345,19 +345,6 @@ class Calibrate extends Component {
                                             min="0"
                                             value={this.state.sectionIndexInputValue}
                                         />
-                                        {/* <DropdownButton
-                                                componentClass={InputGroup.Button}
-                                                className="specificSizedInputGroupItems"
-                                                id="input-dropdown-addon"
-                                                title="Action"
-                                            >
-                                                <MenuItem key="Load" onClick={this.onGridLoadClick}>
-                                                    Load
-                                                </MenuItem>
-                                                <MenuItem key="Save" onClick={this.onGridSaveClick}>
-                                                    Save
-                                                </MenuItem>
-                                            </DropdownButton> */}
                                     </InputGroup>
                                     <InputGroup>
                                         <Button key="Load" onClick={this.onGridLoadClick}>

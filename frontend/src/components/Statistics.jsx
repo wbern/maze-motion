@@ -80,42 +80,6 @@ export class Statistics extends React.Component {
                 </Panel.Heading>
                 <Panel.Body>
                     {this.props.status && this.renderItemContents("", this.props.status)}
-                    {/* <Row>
-                        <Col className="text-right" componentClass={ControlLabel} xs={4}>
-                            Active sections
-                        </Col>
-                        <Col xs={8} className="text-left">
-                            {this.props.activeSections && this.props.activeSections.length > 0
-                                ? JSON.stringify(this.props.activeSections.map(s => s.index))
-                                : " None"}
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col className="text-right" componentClass={ControlLabel} xs={4}>
-                            Connected
-                        </Col>
-                        <Col xs={8} className="text-left">
-                            <FontAwesome
-                                name={
-                                    this.props && this.props.connected
-                                        ? "check-circle"
-                                        : "times-circle"
-                                }
-                            />
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col className="text-right" componentClass={ControlLabel} xs={4}>
-                            Corners
-                        </Col>
-                        <Col xs={8} className="text-left">
-                            <FontAwesome
-                                name={
-                                    this.getCornerStatusIcon(this.props.cornerStatus)
-                                }
-                            />
-                        </Col>
-                    </Row> */}
                 </Panel.Body>
             </Panel>
         );
