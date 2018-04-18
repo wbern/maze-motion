@@ -7,22 +7,27 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Launch Program in Development",
             "runtimeExecutable": "node",
             "runtimeArgs": ["--inspect-brk=9229"],
             "env": {
+                "captureDelay": "1000",
+                "devicePort": "1"
             },
             "program": "${workspaceFolder}/index.js",
             "port": 9229
         },
         {
-            "name": "Launch via NPM",
             "type": "node",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
-            "protocol": "inspector",
-            "runtimeExecutable": "npm",
-            "runtimeArgs": ["run-script", "start"],
+            "name": "Launch Program in Production",
+            "runtimeExecutable": "node",
+            "runtimeArgs": ["--inspect-brk=9229"],
+            "env": {
+                "captureDelay": "5",
+                "devicePort": "1"
+            },
+            "program": "${workspaceFolder}/index.js",
             "port": 9229
         }
     ]
