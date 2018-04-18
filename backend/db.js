@@ -1,29 +1,19 @@
+const fs = require("fs");
+
 class db {
     constructor() {
+        const dbName = "db";
+
         const low = require("lowdb");
         const FileSync = require("lowdb/adapters/FileSync");
 
-        const adapter = new FileSync("db.json");
+        const adapter = new FileSync(dbName + ".json");
+        const defaults = JSON.parse(fs.readFileSync("./" + dbName + "-defaults.json"));
         this.lowdb = low(adapter);
         global.db = this.lowdb;
 
         this.lowdb
-            .defaults({
-                sections: {},
-                users: {},
-                playcounts: 0,
-                cornerHSVMasks: [
-                    {
-                        min: [16, 86, 125],
-                        max: [60, 255, 255]
-                    }
-                ],
-                ballHSVMasks: [
-                    { min: [30, 102, 42], max: [100, 255, 255] }
-                    // want the hand? include this
-                    // { min: [5, 102, 42], max: [30, 255, 255] }
-                ]
-            })
+            .defaults(defaults)
             .write();
     }
 
