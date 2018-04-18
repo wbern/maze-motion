@@ -102,6 +102,7 @@ const clientMsg = {
     disconnect: "disconnect",
     saveSection: "saveSection",
     loadSection: "loadSection",
+    requestSections: "requestSections",
     requestImage: "requestImage",
     requestCornerStatus: "requestCornerStatus",
     requestActiveSections: "requestActiveSections",
@@ -112,6 +113,7 @@ const clientMsg = {
 
 const serverMsg = {
     loadedSection: "loadedSection",
+    sections: "sections",
     activeImage: "activeImage",
     cornerStatus: "cornerStatus",
     activeSections: "activeSections",
@@ -170,6 +172,7 @@ io.on(clientMsg.connection, function(socket) {
                         frontendResolution
                     );
                     db.writeSection(data.index, data.zones);
+                    socket.emit(serverMsg.sections, db.getSections());
                     break;
                     // eslint-disable-next-line no-case-declarations
                 case clientMsg.requestStatus:
@@ -196,6 +199,9 @@ io.on(clientMsg.connection, function(socket) {
                         );
                         socket.emit(serverMsg.loadedSection, { index, zones });
                     }
+                    break;
+                case clientMsg.requestSections:
+                    socket.emit(serverMsg.sections, db.getSections());
                     break;
                 case clientMsg.requestImage:
                     if (data.cameraViewMode && mats[data.cameraViewMode]) {
