@@ -63,6 +63,7 @@ class Calibrate extends Component {
             status: {}
         };
 
+        // open socket to detector backend
         this.socket = openSocket("http://localhost:8080");
 
         this.blockHover = this.blockHover.bind(this);
@@ -75,6 +76,7 @@ class Calibrate extends Component {
     }
 
     componentWillUnmount() {
+        this.unsubscribe();
         this.socket.removeAllListeners();
         this.socket.disconnect();
     }
@@ -160,10 +162,6 @@ class Calibrate extends Component {
             // grab latest settings if no changed have been made
             this.emitIfConnected(clientMsg.requestSettings);
         }
-    }
-
-    componentWillUnmount() {
-        this.unsubscribe();
     }
 
     componentDidMount() {
