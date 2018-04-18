@@ -1,16 +1,10 @@
-import openSocket from "socket.io-client";
-
 import React, { Component } from "react";
-import {
-    Nav,
-    Navbar,
-    NavItem,
-    Row
-} from "react-bootstrap";
+import { Nav, Navbar, NavItem, Row } from "react-bootstrap";
 
 import "./App.css";
 
 import Calibrate from "./components/Calibrate";
+import Play from "./components/Play";
 
 const enums = {
     VIEW: "VIEW",
@@ -26,10 +20,6 @@ class App extends Component {
         };
     }
 
-    componentWillMount() {
-        this.socket = openSocket("http://localhost:8080");
-    }
-
     setView(view) {
         this.setState({
             view
@@ -39,33 +29,54 @@ class App extends Component {
     getView() {
         switch (this.state.view) {
             case enums.CALIBRATE:
-                return <Calibrate socket={this.socket} />;
+                return <Calibrate />;
             case enums.VIEW:
-                return <div>view!!</div>;
+                return <Play />;
             default:
-                return <div>default</div>;
+                return <div>?</div>;
         }
     }
 
     render() {
         return (
             <div className="App">
-                <Navbar>
-                    <Navbar.Header>
-                        <Navbar.Brand>
-                            <a onClick={() => this.setView(enums.VIEW)}>Play</a>
-                        </Navbar.Brand>
-                    </Navbar.Header>
-                    <Nav>
-                        <NavItem
-                            onClick={() => this.setView(enums.CALIBRATE)}
-                            eventKey={1}
-                            href="#"
-                        >
-                            Calibrate
-                        </NavItem>
-                    </Nav>
-                </Navbar>
+                {this.state.hideNavBar ? (
+                    <div onClick={() => this.setState({ hideNavBar: false})} className="App-showNavbarButton">Show</div>
+                ) : (
+                    <Navbar>
+                        <Navbar.Header>
+                            <Navbar.Brand>
+                                <a
+                                    onClick={e => {
+                                        e.preventDefault();
+                                        this.setView(enums.VIEW);
+                                    }}
+                                    href=""
+                                >
+                                    Play
+                                </a>
+                            </Navbar.Brand>
+                        </Navbar.Header>
+                        <Nav>
+                            <NavItem
+                                onClick={() => this.setView(enums.CALIBRATE)}
+                                eventKey={1}
+                                href=""
+                            >
+                                Calibrate
+                            </NavItem>
+                        </Nav>
+                        <Nav pullRight>
+                            <NavItem
+                                onClick={() => this.setState({ hideNavBar: true })}
+                                eventKey={2}
+                                href=""
+                            >
+                                Hide
+                            </NavItem>
+                        </Nav>
+                    </Navbar>
+                )}
                 <Row>
                     <div>{this.getView()}</div>
                 </Row>

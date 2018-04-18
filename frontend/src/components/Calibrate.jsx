@@ -13,6 +13,8 @@ import {
 } from "react-bootstrap";
 import { setGridByZones, getEmptyGrid, cloneGrid, getZonesByGrid } from "./Calibrate.functions";
 
+import openSocket from "socket.io-client";
+
 import Settings from "./Settings";
 import Statistics from "./Statistics";
 
@@ -61,6 +63,8 @@ class Calibrate extends Component {
             status: {}
         };
 
+        this.socket = openSocket("http://localhost:8080");
+
         this.blockHover = this.blockHover.bind(this);
         this.onMouseDown = this.onMouseDown.bind(this);
         this.onMouseUp = this.onMouseUp.bind(this);
@@ -68,6 +72,11 @@ class Calibrate extends Component {
         this.onGridSaveClick = this.onGridSaveClick.bind(this);
         this.onGridClearClick = this.onGridClearClick.bind(this);
         this.sectionIndexChange = this.sectionIndexChange.bind(this);
+    }
+
+    componentWillUnmount() {
+        this.socket.removeAllListeners();
+        this.socket.disconnect();
     }
 
     subscribe() {
@@ -80,7 +89,7 @@ class Calibrate extends Component {
             this.setState({ connected: false });
         };
 
-        if (this.props.socket.connected) {
+        if (this.socket.connected) {
             setConnected();
         } else {
             setDisconnected();
@@ -89,7 +98,7 @@ class Calibrate extends Component {
         Object.keys(serverMsg).forEach(key => {
             const msg = serverMsg[key];
 
-            this.props.socket.on(
+            this.socket.on(
                 msg,
                 function(data) {
                     switch (msg) {
@@ -142,7 +151,7 @@ class Calibrate extends Component {
     unsubscribe() {
         Object.keys(serverMsg).forEach(key => {
             const msg = serverMsg[key];
-            this.props.socket.off(msg);
+            this.socket.off(msg);
         });
     }
 
@@ -191,8 +200,8 @@ class Calibrate extends Component {
     }
 
     emitIfConnected(...args) {
-        if (this.props.socket && this.props.socket.connected) {
-            this.props.socket.emit.apply(this.props.socket, args);
+        if (this.socket && this.socket.connected) {
+            this.socket.emit.apply(this.socket, args);
         }
     }
 
@@ -239,7 +248,7 @@ class Calibrate extends Component {
 
     onGridLoadClick(e) {
         e.preventDefault();
-        this.props.socket.emit(clientMsg.loadSection, this.state.sectionIndexInputValue);
+        this.socket.emit(clientMsg.loadSection, this.state.sectionIndexInputValue);
         // e.target.children.sectionIndex.value
         this.grid = getEmptyGrid();
         this.forceUpdate();
@@ -247,7 +256,7 @@ class Calibrate extends Component {
 
     onGridSaveClick(e) {
         e.preventDefault();
-        this.props.socket.emit(clientMsg.saveSection, {
+        this.socket.emit(clientMsg.saveSection, {
             zones: getZonesByGrid(this.grid),
             resolution: { height: 480, width: 640 },
             index: this.state.sectionIndexInputValue
