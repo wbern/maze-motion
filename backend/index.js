@@ -182,14 +182,12 @@ const setActiveSections = activeSections => {
     }
 
     // debugging
-    // if (JSON.stringify(status.normalizedActiveSections) !== JSON.stringify(status.activeSections)) {
-    console.log(
-        "Normalized: " +
-            JSON.stringify(status.normalizedActiveSections) +
-            ", Raw: " +
-            JSON.stringify(status.activeSections)
-    );
-    // }
+    // console.log(
+    //     "Normalized: " +
+    //         JSON.stringify(status.normalizedActiveSections) +
+    //         ", Raw: " +
+    //         JSON.stringify(status.activeSections)
+    // );
 };
 
 // socket endpoints

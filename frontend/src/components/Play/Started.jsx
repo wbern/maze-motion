@@ -1,6 +1,8 @@
 import React from "react";
 import "./Started.css";
 
+import { getTimeText } from "../Play.functions";
+
 export class Started extends React.Component {
     constructor(props) {
         super(props);
@@ -35,17 +37,7 @@ export class Started extends React.Component {
 
     updateTimerRef() {
         if (this.timerElement) {
-            let tempTime = Date.now() - new Date(this.props.status.startTime);
-            const milliseconds = (tempTime % 1000).toString().substr(0,2).padStart(2, "0");
-            tempTime = Math.floor(tempTime / 1000);
-            const seconds = (tempTime % 60).toString().padStart(2, "0");
-            tempTime = Math.floor(tempTime / 60);
-            const minutes = (tempTime % 60).toString().padStart(2, "0");
-            tempTime = Math.floor(tempTime / 60);
-            const hours = (tempTime % 60).toString().padStart(2, "0");
-
-            this.timerElement.innerHTML =
-                hours + " : " + minutes + " : " + seconds + " : " + milliseconds;
+            this.timerElement.innerHTML = getTimeText(this.props.status.startTime)
         }
     }
 
@@ -55,7 +47,7 @@ export class Started extends React.Component {
                 <p ref={input => (this.timerElement = input)}>{this.updateTimerRef()}</p>
                 <small>Current Section: {this.props.status.currentSection}</small>
                 <small>Highest Section: {this.props.status.highestSection}</small>
-                <p>{JSON.stringify(this.props.status)}</p>
+                {/* <p>{JSON.stringify(this.props.status)}</p> */}
             </div>
         );
     }

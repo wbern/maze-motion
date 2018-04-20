@@ -50,7 +50,7 @@ export class Play extends React.Component {
             function() {
                 this.setState({ backgroundColorIndex: this.state.backgroundColorIndex % 4 + 1 });
             }.bind(this),
-            5000
+            15000
         );
 
         this.subscribe();

@@ -302,7 +302,7 @@ const track = () => {
         emitToBackendIfConnected(gameClientMsg.requestActiveSectionsNormalizedWithoutZoneData);
 
         status.errorMessage = "";
-        setTimeout(track, 1000);
+        setTimeout(track, 300);
     } catch (e) {
         status.errorMessage = e;
         console.error(e);

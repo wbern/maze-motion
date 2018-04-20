@@ -5,7 +5,6 @@ import {
     Row,
     Col,
     FormControl,
-    FormGroup,
     InputGroup,
     DropdownButton,
     MenuItem,
