@@ -29,7 +29,9 @@ export class Started extends React.Component {
         );
     }
 
-    componentDidMount() {}
+    componentWillUnmount() {
+        clearInterval(this.stopWatchInterval);
+    }
 
     updateTimerRef() {
         if (this.timerElement) {

@@ -258,6 +258,9 @@ const onActiveSections = activeSections => {
         }
     } else {
         // ball is present
+        // reset missing timer
+        status.ballMissingStartTime = null;
+
         // get section closest to current section (respecting both behind and ahead of current)
         const nextSection = getClosestSection(activeSections, status.currentSection);
         const isLegit = isLegitSectionChange(nextSection);
