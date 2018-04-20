@@ -186,7 +186,7 @@ const changeMode = mode => {
             break;
         case modes.finish:
             // set end time based on when the ball first went missing
-            status.endTime = new Date(Date.now() - (Date.now() - status.ballMissingStartTime));
+            status.endTime = status.ballMissingStartTime || new Date();
             status.gameStarted = false;
             status.currentMode = mode;
             emitCurrentModeAndStatus();

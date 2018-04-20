@@ -1,5 +1,5 @@
-export function getTimeText(startTime) {
-    let tempTime = Date.now() - new Date(startTime);
+export function getTimeText(startTime, endTime = Date.now()) {
+    let tempTime = new Date(endTime) - new Date(startTime);
 
     const milliseconds = (tempTime % 1000)
         .toString()
