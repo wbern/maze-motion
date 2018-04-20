@@ -750,7 +750,7 @@
     "cameraGain": 0,
     "cornerIdentificationWarnLimit": 10,
     "sectionIdentification": {
-      "threshold": 30
+      "normalizationValue": 3
     },
     "cornerIdentification": {
       "cornerPadding": 5,

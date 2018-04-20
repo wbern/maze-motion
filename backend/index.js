@@ -109,6 +109,8 @@ const clientMsg = {
     requestCornerStatus: "requestCornerStatus",
     requestActiveSections: "requestActiveSections",
     requestActiveSectionsWithoutZoneData: "requestActiveSectionsWithoutZoneData",
+    requestActiveSectionsNormalizedWithoutZoneData:
+        "requestActiveSectionsNormalizedWithoutZoneData",
     requestStatus: "requestStatus",
     requestSettings: "requestSettings",
     saveSettings: "saveSettings"
@@ -121,16 +123,17 @@ const serverMsg = {
     cornerStatus: "cornerStatus",
     activeSections: "activeSections",
     activeSectionsWithoutZoneData: "activeSectionsWithoutZoneData",
+    activeSectionsNormalizedWithoutZoneData: "activeSectionsNormalizedWithoutZoneData",
     status: "status",
     settings: "settings"
 };
 
 const setActiveSections = activeSections => {
-    // set active sections
+    // set active sections and a normalized array as well
     status.activeSections = activeSections;
 
     // set a normalized value based on previous captures
-    const normalizeValue = settings.activeSectionsNormalizationValue || 3;
+    const normalizeValue = settings.sectionIdentification.normalizationValue;
 
     // add the newest to the history
     status.lastActiveSections.unshift(activeSections);
@@ -151,17 +154,42 @@ const setActiveSections = activeSections => {
         }, {});
 
         // find the occurences that are consistently present in all last active sections
-        const normalizedActiveSections = [];
+        const alwaysPresentSections = [];
         Object.keys(sectionsOccurenceCount).forEach(sectionName => {
-            const occurences = sectionsOccurenceCount[sectionName];
-
-            if (occurences === normalizeValue) {
-                normalizedActiveSections.push(sectionName);
+            if (sectionsOccurenceCount[sectionName] === normalizeValue) {
+                alwaysPresentSections.push(sectionName);
             }
         });
 
-        status.normalizedActiveSections = normalizedActiveSections;
+        // remove sections that are completely gone from the last X captures
+        status.normalizedActiveSections = status.normalizedActiveSections.filter(
+            normalizedSection => {
+                if (!sectionsOccurenceCount[normalizedSection]) {
+                    // old normalized section is not present at all anymore
+                    return false;
+                }
+                return true;
+            }
+        );
+
+        // add the always present sections in
+        alwaysPresentSections.forEach(alwaysPresentSection => {
+            if (!status.normalizedActiveSections.includes(alwaysPresentSection)) {
+                // section is not previously in the array, add it in
+                status.normalizedActiveSections.push(alwaysPresentSection);
+            }
+        });
     }
+
+    // debugging
+    // if (JSON.stringify(status.normalizedActiveSections) !== JSON.stringify(status.activeSections)) {
+    console.log(
+        "Normalized: " +
+            JSON.stringify(status.normalizedActiveSections) +
+            ", Raw: " +
+            JSON.stringify(status.activeSections)
+    );
+    // }
 };
 
 // socket endpoints
@@ -273,6 +301,12 @@ io.on(clientMsg.connection, function(socket) {
                 case clientMsg.requestActiveSectionsWithoutZoneData:
                     socket.emit(serverMsg.activeSectionsWithoutZoneData, status.activeSections);
                     break;
+                case clientMsg.requestActiveSectionsNormalizedWithoutZoneData:
+                    socket.emit(
+                        serverMsg.activeSectionsNormalizedWithoutZoneData,
+                        status.normalizedActiveSections
+                    );
+                    break;
                 }
             }.bind(this)
         );
@@ -348,15 +382,8 @@ const track = () => {
                         )
                     );
 
-                    // save new active sections if there was a change
-                    if (
-                        activeSections.length !== status.activeSections.length ||
-                        activeSections.some(
-                            activeSectionName => !status.activeSections.includes(activeSectionName)
-                        )
-                    ) {
-                        setActiveSections(activeSections);
-                    }
+                    // set new active sections if there was a change
+                    setActiveSections(activeSections);
 
                     if (settings.visualAid.ballCircle) {
                         // around the ball

@@ -66,7 +66,7 @@ const gameClientMsg = {
     connect: "connect",
     disconnect: "disconnect",
     requestActiveSections: "requestActiveSections",
-    requestActiveSectionsWithoutZoneData: "requestActiveSectionsWithoutZoneData",
+    requestActiveSectionsNormalizedWithoutZoneData: "requestActiveSectionsNormalizedWithoutZoneData",
     requestSections: "requestSections"
 };
 
@@ -74,7 +74,7 @@ const gameClientMsg = {
 const serverMsg = {
     activeSections: "activeSections",
     sections: "sections",
-    activeSectionsWithoutZoneData: "activeSectionsWithoutZoneData"
+    activeSectionsNormalizedWithoutZoneData: "activeSectionsNormalizedWithoutZoneData"
 };
 
 // socket endpoints
@@ -111,7 +111,7 @@ backendSocket.on(
                 msg,
                 function(data) {
                     switch (msg) {
-                    case serverMsg.activeSectionsWithoutZoneData:
+                    case serverMsg.activeSectionsNormalizedWithoutZoneData:
                         onActiveSections(data);
                         break;
                     case serverMsg.sections:
@@ -299,7 +299,7 @@ const onActiveSections = activeSections => {
 // track active section from detector backend, notify frontend of changes
 const track = () => {
     try {
-        emitToBackendIfConnected(gameClientMsg.requestActiveSectionsWithoutZoneData);
+        emitToBackendIfConnected(gameClientMsg.requestActiveSectionsNormalizedWithoutZoneData);
 
         status.errorMessage = "";
         setTimeout(track, 1000);
