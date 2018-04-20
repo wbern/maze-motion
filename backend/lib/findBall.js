@@ -55,7 +55,7 @@ module.exports = (boardImage, sections, options) => {
         new cv.Point2(0, 0),
         new cv.Point2(sectionsMask.sizes[1], sectionsMask.sizes[0]),
         new cv.Vec3(0, 0, 0),
-        -1
+        cv.FILLED
     );
     Object.keys(sections).forEach(sectionName => {
         sections[sectionName].zones.forEach(zone => {
@@ -63,7 +63,7 @@ module.exports = (boardImage, sections, options) => {
                 new cv.Point2(zone.x, zone.y),
                 new cv.Point2(zone.x + zone.width, zone.y + zone.height),
                 new cv.Vec(255, 255, 255),
-                -1
+                cv.FILLED
             );
         });
     });
@@ -94,14 +94,14 @@ module.exports = (boardImage, sections, options) => {
             new cv.Point2(0, 0),
             new cv.Point2(backgroundMat.sizes[1], backgroundMat.sizes[0]),
             new cv.Vec3(0, 0, 0),
-            -1
+            cv.FILLED
         );
         // draw a white circle on the mask where the current circle is, with variable offset
         circleMask.drawCircle(
             new cv.Point2(circle.x, circle.y),
             parseInt(circle.z * (1 - options.trimCircleEdgePercentage)),
             new cv.Vec3(255, 255, 255),
-            -1000
+            cv.FILLED
         );
 
         // create a circle background with a near-perfect white, which won't be taken into
@@ -115,7 +115,7 @@ module.exports = (boardImage, sections, options) => {
             new cv.Point2(0, 0),
             new cv.Point2(backgroundMat.sizes[1], backgroundMat.sizes[0]),
             new cv.Vec3(254, 254, 254),
-            -1
+            cv.FILLED
         );
 
         // get a mat of only the current circle with relevant grayness only
