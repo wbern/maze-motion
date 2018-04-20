@@ -24,6 +24,8 @@ const mats = {};
 
 const status = {
     activeSections: [],
+    lastActiveSections: [],
+    normalizedActiveSections: [],
     timings: {
         general: -1,
         error: -1,
@@ -123,6 +125,45 @@ const serverMsg = {
     settings: "settings"
 };
 
+const setActiveSections = activeSections => {
+    // set active sections
+    status.activeSections = activeSections;
+
+    // set a normalized value based on previous captures
+    const normalizeValue = settings.activeSectionsNormalizationValue || 3;
+
+    // add the newest to the history
+    status.lastActiveSections.unshift(activeSections);
+
+    if (status.lastActiveSections.length >= normalizeValue) {
+        // we have enough captures to make a normalized result
+        if (status.lastActiveSections.length > normalizeValue) {
+            // Remove entries larger than the normalization value
+            status.lastActiveSections.splice(normalizeValue);
+        }
+
+        // get occurence list of all active sections
+        const sectionsOccurenceCount = status.lastActiveSections.reduce((prev, currSections) => {
+            return currSections.reduce((prev, currSectionNumber) => {
+                prev[currSectionNumber] = (prev[currSectionNumber] || 0) + 1;
+                return prev;
+            }, prev);
+        }, {});
+
+        // find the occurences that are consistently present in all last active sections
+        const normalizedActiveSections = [];
+        Object.keys(sectionsOccurenceCount).forEach(sectionName => {
+            const occurences = sectionsOccurenceCount[sectionName];
+
+            if (occurences === normalizeValue) {
+                normalizedActiveSections.push(sectionName);
+            }
+        });
+
+        status.normalizedActiveSections = normalizedActiveSections;
+    }
+};
+
 // socket endpoints
 io.on(clientMsg.connection, function(socket) {
     console.log("a user connected");
@@ -133,105 +174,105 @@ io.on(clientMsg.connection, function(socket) {
             msg,
             function(data) {
                 switch (msg) {
-                    case clientMsg.disconnect:
-                        socket.removeAllListeners();
-                        socket.disconnect();
-                        // Object.keys(clientMsg).forEach(key => {
-                        //     const msg = clientMsg[key];
-                        //     socket.off(msg);
-                        // })
-                        break;
-                    case clientMsg.requestSettings:
-                        socket.emit(serverMsg.settings, db.getSettings());
-                        break;
-                    case clientMsg.saveSettings:
-                        try {
-                            // parse new settings
-                            const newSettings = data;
-                            // write new settings to db
-                            db.writeSettings(newSettings);
-                            // use the new settings
-                            settings = newSettings;
-                            applySettings();
-                        } catch (e) {
-                            status.errorMessage = "Invalid settings were not saved.";
+                case clientMsg.disconnect:
+                    socket.removeAllListeners();
+                    socket.disconnect();
+                    // Object.keys(clientMsg).forEach(key => {
+                    //     const msg = clientMsg[key];
+                    //     socket.off(msg);
+                    // })
+                    break;
+                case clientMsg.requestSettings:
+                    socket.emit(serverMsg.settings, db.getSettings());
+                    break;
+                case clientMsg.saveSettings:
+                    try {
+                        // parse new settings
+                        const newSettings = data;
+                        // write new settings to db
+                        db.writeSettings(newSettings);
+                        // use the new settings
+                        settings = newSettings;
+                        applySettings();
+                    } catch (e) {
+                        status.errorMessage = "Invalid settings were not saved.";
+                    }
+
+                    // return currently used settings in runtime
+                    socket.emit(serverMsg.settings, settings);
+
+                    break;
+                case clientMsg.saveSection:
+                    data.zones = adjustZonesResolution(
+                        data.zones,
+                        data.resolution,
+                        settings.resolution
+                    );
+                    data.zones = simplifyZones(
+                        data.zones,
+                        data.resolution,
+                        settings.resolution,
+                        frontendResolution
+                    );
+                    db.writeSection(data.index, data.zones);
+                    socket.emit(serverMsg.sections, db.getSections());
+                    break;
+                    // eslint-disable-next-line no-case-declarations
+                case clientMsg.requestStatus:
+                    const evaluatedStatus = {};
+                    Object.keys(status).forEach(key => {
+                        if (typeof status[key] === "function") {
+                            evaluatedStatus[key] = status[key]();
+                        } else {
+                            evaluatedStatus[key] = status[key];
                         }
+                    });
 
-                        // return currently used settings in runtime
-                        socket.emit(serverMsg.settings, settings);
-
-                        break;
-                    case clientMsg.saveSection:
-                        data.zones = adjustZonesResolution(
-                            data.zones,
-                            data.resolution,
-                            settings.resolution
-                        );
-                        data.zones = simplifyZones(
-                            data.zones,
-                            data.resolution,
+                    socket.emit(serverMsg.status, evaluatedStatus);
+                    break;
+                    // eslint-disable-next-line no-case-declarations
+                case clientMsg.loadSection:
+                    const index = data;
+                    const section = db.getSection(index);
+                    if (section) {
+                        const zones = adjustZonesResolution(
+                            section.zones,
                             settings.resolution,
                             frontendResolution
                         );
-                        db.writeSection(data.index, data.zones);
-                        socket.emit(serverMsg.sections, db.getSections());
-                        break;
-                    // eslint-disable-next-line no-case-declarations
-                    case clientMsg.requestStatus:
-                        const evaluatedStatus = {};
-                        Object.keys(status).forEach(key => {
-                            if (typeof status[key] === "function") {
-                                evaluatedStatus[key] = status[key]();
-                            } else {
-                                evaluatedStatus[key] = status[key];
-                            }
-                        });
-
-                        socket.emit(serverMsg.status, evaluatedStatus);
-                        break;
-                    // eslint-disable-next-line no-case-declarations
-                    case clientMsg.loadSection:
-                        const index = data;
-                        const section = db.getSection(index);
-                        if (section) {
+                        socket.emit(serverMsg.loadedSection, { index, zones });
+                    }
+                    break;
+                case clientMsg.requestSections:
+                    socket.emit(serverMsg.sections, db.getSections());
+                    break;
+                case clientMsg.requestImage:
+                    if (data.cameraViewMode && mats[data.cameraViewMode]) {
+                        socket.emit(
+                            serverMsg.activeImage,
+                            new Buffer(cv.imencode(".png", mats[data.cameraViewMode]))
+                        );
+                    }
+                    break;
+                case clientMsg.requestActiveSections:
+                    // send back active sections with respective zones
+                    socket.emit(
+                        serverMsg.activeSections,
+                        status.activeSections.map(activeSectionIndex => {
+                            const section = db.getSection(activeSectionIndex);
                             const zones = adjustZonesResolution(
                                 section.zones,
                                 settings.resolution,
                                 frontendResolution
                             );
-                            socket.emit(serverMsg.loadedSection, { index, zones });
-                        }
-                        break;
-                    case clientMsg.requestSections:
-                        socket.emit(serverMsg.sections, db.getSections());
-                        break;
-                    case clientMsg.requestImage:
-                        if (data.cameraViewMode && mats[data.cameraViewMode]) {
-                            socket.emit(
-                                serverMsg.activeImage,
-                                new Buffer(cv.imencode(".png", mats[data.cameraViewMode]))
-                            );
-                        }
-                        break;
-                    case clientMsg.requestActiveSections:
-                        // send back active sections with respective zones
-                        socket.emit(
-                            serverMsg.activeSections,
-                            status.activeSections.map(activeSectionIndex => {
-                                const section = db.getSection(activeSectionIndex);
-                                const zones = adjustZonesResolution(
-                                    section.zones,
-                                    settings.resolution,
-                                    frontendResolution
-                                );
 
-                                return { index: activeSectionIndex, zones };
-                            })
-                        );
-                        break;
-                    case clientMsg.requestActiveSectionsWithoutZoneData:
-                        socket.emit(serverMsg.activeSectionsWithoutZoneData, status.activeSections);
-                        break;
+                            return { index: activeSectionIndex, zones };
+                        })
+                    );
+                    break;
+                case clientMsg.requestActiveSectionsWithoutZoneData:
+                    socket.emit(serverMsg.activeSectionsWithoutZoneData, status.activeSections);
+                    break;
                 }
             }.bind(this)
         );
@@ -314,7 +355,7 @@ const track = () => {
                             activeSectionName => !status.activeSections.includes(activeSectionName)
                         )
                     ) {
-                        status.activeSections = activeSections;
+                        setActiveSections(activeSections);
                     }
 
                     if (settings.visualAid.ballCircle) {
@@ -347,7 +388,7 @@ const track = () => {
                     ballTrackingsPerSecond++;
                 } else {
                     // ball was NOT found
-                    status.activeSections = [];
+                    setActiveSections([]);
                 }
             }
 
