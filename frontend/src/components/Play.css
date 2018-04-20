@@ -1,0 +1,28 @@
+.Play {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: #FEFEFE;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 36px;
+}
+
+.Play-backgroundColor {
+    transition: background-color 1000ms linear;
+}
+
+.Play-backgroundColor-1 {
+    background: #62A6A3
+}
+
+.Play-backgroundColor-2 {
+    background: #B0AE97
+}
+
+.Play-backgroundColor-3 {
+    background: #F37F4A
+}
+
+.Play-backgroundColor-4 {
+    background: #C1AF49
+}

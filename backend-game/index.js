@@ -58,7 +58,7 @@ const gameServerMsg = {
 
 // messages going from this application (game server) to the back-end
 const gameClientMsg = {
-    connection: "connection",
+    connect: "connect",
     disconnect: "disconnect",
     requestActiveSections: "requestActiveSections",
     requestSections: "requestSections"
@@ -91,15 +91,16 @@ io.on(clientMsg.connection, function(frontendSocket) {
 const backendSocket = openSocket("http://localhost:8080");
 
 backendSocket.on(
-    gameClientMsg.connection,
-    function(socket) {
+    gameClientMsg.connect,
+    function(a, b, c) {
         // subscribe to backend messages
-        Object.keys(clientMsg).forEach(key => {
+        Object.keys(serverMsg).forEach(key => {
             const msg = serverMsg[key];
 
-            socket.on(
+            backendSocket.on(
                 msg,
                 function(data) {
+                    console.log(msg);
                     switch (msg) {
                     case serverMsg.activeSections:
                         onActiveSections(data);
@@ -116,7 +117,7 @@ backendSocket.on(
         });
 
         // request some initial data
-        socket.emit(gameClientMsg.requestSections);
+        backendSocket.emit(gameClientMsg.requestSections);
     }.bind(this)
 );
 
@@ -220,7 +221,7 @@ const onActiveSections = activeSections => {
         // ball is present
         // get section closest to current section (respecting both behind and ahead of current)
         let nextSection = getClosestSection(activeSections, status.currentSection);
-        if(!isLegitSectionChange(nextSection)) {
+        if (!isLegitSectionChange(nextSection)) {
             // it's not a legit section change, revert to current section
             nextSection = status.currentSection;
         }
@@ -240,7 +241,7 @@ const onActiveSections = activeSections => {
             }
         } else {
             // game is started
-            if(nextSection === status.highestSection) {
+            if (nextSection === status.highestSection) {
                 // we've entered the last and final section. Finish the game.
                 switchSection(nextSection);
                 changeMode(modes.finish);

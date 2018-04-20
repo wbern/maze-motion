@@ -16,7 +16,7 @@ class App extends Component {
         super(props);
 
         this.state = {
-            view: enums.CALIBRATE
+            view: enums.VIEW
         };
     }
 
@@ -43,7 +43,7 @@ class App extends Component {
                 {this.state.hideNavBar ? (
                     <div onClick={() => this.setState({ hideNavBar: false})} className="App-showNavbarButton">Show</div>
                 ) : (
-                    <Navbar>
+                    <Navbar className="App-navBar">
                         <Navbar.Header>
                             <Navbar.Brand>
                                 <a
@@ -77,8 +77,8 @@ class App extends Component {
                         </Nav>
                     </Navbar>
                 )}
-                <Row>
-                    <div>{this.getView()}</div>
+                <Row className="App-content">
+                    {this.getView()}
                 </Row>
             </div>
         );

@@ -13,6 +13,7 @@ import {
 } from "react-bootstrap";
 import { setGridByZones, getEmptyGrid, cloneGrid, getZonesByGrid } from "./Calibrate.functions";
 
+import Constants from "../Constants";
 import openSocket from "socket.io-client";
 
 import Settings from "./Settings";
@@ -64,7 +65,7 @@ class Calibrate extends Component {
         };
 
         // open socket to detector backend
-        this.socket = openSocket("http://localhost:8080");
+        this.socket = openSocket(Constants.serverAddress);
 
         this.blockHover = this.blockHover.bind(this);
         this.onMouseDown = this.onMouseDown.bind(this);
@@ -335,6 +336,9 @@ class Calibrate extends Component {
         return (
             <div className="calibrate">
                 <Grid>
+                    <Row>
+                        <h2 className="text-left"><small>Made by William Bernting</small></h2>
+                    </Row>
                     <Row>
                         <Col xs={7}>
                             <Row>

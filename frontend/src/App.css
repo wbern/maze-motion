@@ -1,5 +1,10 @@
 .App {
     text-align: center;
+    height: 100%;
+}
+
+.App-navBar {
+    margin: 0;
 }
 
 .App-logo {
@@ -20,6 +25,11 @@
 
 .App-intro {
     font-size: large;
+}
+
+.App-content {
+    height: 100%;
+    margin: 0;
 }
 
 .App-showNavbarButton {

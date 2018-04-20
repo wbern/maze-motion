@@ -226,6 +226,10 @@ io.on(clientMsg.connection, function(socket) {
                             return { index: activeSectionIndex, zones };
                         })
                     );
+                    break;
+                case clientMsg.requestActiveSectionsWithoutZoneData:
+                    socket.emit(serverMsg.activeSectionsWithoutZoneData, status.activeSections);
+                    break;
                 }
             }.bind(this)
         );
