@@ -75,20 +75,20 @@ module.exports = (imageMat, options, targetResolution) => {
     const findContoursMethod = cv.CHAIN_APPROX_NONE;
     let foundContours = maskedCornersMat.findContours(mode, findContoursMethod);
 
-    const getContourDimensions = (c, outlineMargin = 0) => {
+    const getContourDimensions = (c, rectangleDilation = 0) => {
         const d = c.boundingRect();
         return {
-            topLeft: new cv.Point2(d.x - outlineMargin, d.y - outlineMargin),
+            topLeft: new cv.Point2(d.x - rectangleDilation, d.y - rectangleDilation),
             bottomRight: new cv.Point2(
-                d.x + d.width + outlineMargin,
-                d.y + d.height + outlineMargin
+                d.x + d.width + rectangleDilation,
+                d.y + d.height + rectangleDilation
             )
         };
     };
 
     // draw rectangles around each contour to absorb smaller neighbouring contours in broken scans
     foundContours.forEach(c => {
-        const points = getContourDimensions(c, 2);
+        const points = getContourDimensions(c, options.cornerDilation);
         maskedCornersMat.drawRectangle(
             points.topLeft,
             points.bottomRight,
