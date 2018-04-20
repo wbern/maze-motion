@@ -24,20 +24,24 @@ const settings = {
 
 let status = {};
 
-const defaultStatus = {
-    currentMode: modes.instructions, // enum
-    gameStarted: false, // bool
-    highestSection: 0, // number
-    currentSection: 0, // number
-    startTime: null, // date
-    endTime: null, // date
-    ballMissingDuration: null, // date
-    lastSectionNumber: null
-};
-
 // resets game status (including mode)
 const resetStatus = () => {
-    status = Object.assign({}, defaultStatus);
+    status = Object.assign(
+        {},
+        // default values
+        {
+            currentMode: modes.instructions, // enum
+            gameStarted: false, // bool
+            highestSection: 0, // number
+            currentSection: 0, // number
+            startTime: null, // date
+            endTime: null, // date
+            ballMissingStartTime: null, // date
+            lastSectionNumber: null
+        },
+        // values that should stick from before status reset
+        { lastSectionNumber: status.lastSectionNumber }
+    );
 };
 resetStatus();
 
@@ -48,7 +52,8 @@ applySettings();
 // messages from front-end
 const clientMsg = {
     connection: "connection",
-    disconnect: "disconnect"
+    disconnect: "disconnect",
+    requestMode: "requestMode"
 };
 
 // messages going from this application (game-server) to the front-end
@@ -61,13 +66,15 @@ const gameClientMsg = {
     connect: "connect",
     disconnect: "disconnect",
     requestActiveSections: "requestActiveSections",
+    requestActiveSectionsWithoutZoneData: "requestActiveSectionsWithoutZoneData",
     requestSections: "requestSections"
 };
 
 // messages from back-end
 const serverMsg = {
     activeSections: "activeSections",
-    sections: "sections"
+    sections: "sections",
+    activeSectionsWithoutZoneData: "activeSectionsWithoutZoneData"
 };
 
 // socket endpoints
@@ -78,8 +85,11 @@ io.on(clientMsg.connection, function(frontendSocket) {
 
         frontendSocket.on(
             msg,
-            function(data) {
+            function(/* data*/) {
                 switch (msg) {
+                case clientMsg.requestMode:
+                    emitCurrentModeAndStatus();
+                    break;
                 default:
                     break;
                 }
@@ -92,7 +102,7 @@ const backendSocket = openSocket("http://localhost:8080");
 
 backendSocket.on(
     gameClientMsg.connect,
-    function(a, b, c) {
+    function() {
         // subscribe to backend messages
         Object.keys(serverMsg).forEach(key => {
             const msg = serverMsg[key];
@@ -100,9 +110,8 @@ backendSocket.on(
             backendSocket.on(
                 msg,
                 function(data) {
-                    console.log(msg);
                     switch (msg) {
-                    case serverMsg.activeSections:
+                    case serverMsg.activeSectionsWithoutZoneData:
                         onActiveSections(data);
                         break;
                     case serverMsg.sections:
@@ -122,11 +131,25 @@ backendSocket.on(
 );
 
 const switchSection = section => {
-    if (section > status.highestSection) {
+    const newHighest = section > status.highestSection;
+    if (newHighest) {
         // it's a new "high"
         status.highestSection = section;
     }
-    status.currentSection = section;
+
+    if (status.currentSection !== section) {
+        console.log(
+            "Current Section: " +
+                status.currentSection +
+                " -> " +
+                section +
+                (newHighest ? " (New highest)" : "")
+        );
+        status.currentSection = section;
+    }
+
+    // broadcast the change
+    emitCurrentModeAndStatus();
 };
 
 const isLegitSectionChange = proposedSection => {
@@ -136,33 +159,47 @@ const isLegitSectionChange = proposedSection => {
     );
 };
 
+const emitCurrentModeAndStatus = () => {
+    io.emit(gameServerMsg.mode, {
+        mode: status.currentMode,
+        status
+    });
+};
+
 const changeMode = mode => {
     if (mode !== status.currentMode) {
         // new mode is different from old one
-        const emitMode = () => io.emit(gameServerMsg.mode, { mode, status });
+        console.log("Mode: " + status.currentMode + " -> " + mode);
 
         switch (mode) {
         case modes.instructions:
         case modes.ready:
             resetStatus(); // to clear any old values
             status.currentMode = mode;
-            emitMode();
+            emitCurrentModeAndStatus();
             break;
         case modes.started:
             status.startTime = new Date();
             status.gameStarted = true;
             status.currentMode = mode;
-            emitMode();
+            emitCurrentModeAndStatus();
             break;
         case modes.finish:
-            status.endTime = new Date(Date.now() - (status.ballMissingDuration || 0));
+            // set end time based on when the ball first went missing
+            status.endTime = new Date(Date.now() - (Date.now() - status.ballMissingStartTime));
             status.gameStarted = false;
             status.currentMode = mode;
-            emitMode();
+            emitCurrentModeAndStatus();
             break;
         default:
             break;
         }
+    }
+};
+
+const emitToBackendIfConnected = (...args) => {
+    if (backendSocket && backendSocket.connected) {
+        backendSocket.emit.apply(backendSocket, args);
     }
 };
 
@@ -171,9 +208,11 @@ const getClosestSection = (sections, currentSection) => {
     // will match optimistically, so if there's an active section behind
     // and ahead of the current section at the same time (which is unlikely),
     // the active second ahead of the current section will be used
-    if (sections.length === 1) {
+    if (sections.length === 0) {
+        throw new Error("No sections to determine closest section from");
+    } else if (sections.length === 1) {
         // only one active section, return it
-        return sections[0];
+        return parseInt(sections[0]);
     }
 
     // return the section number closest
@@ -204,7 +243,7 @@ const onActiveSections = activeSections => {
             }
         } else {
             // game is started, but ball is gone
-            if (status.ballMissingDuration === null) {
+            if (status.ballMissingStartTime === null) {
                 // ball just started being gone, set missing duration
                 status.ballMissingStartTime = new Date();
             } else {
@@ -220,31 +259,35 @@ const onActiveSections = activeSections => {
     } else {
         // ball is present
         // get section closest to current section (respecting both behind and ahead of current)
-        let nextSection = getClosestSection(activeSections, status.currentSection);
-        if (!isLegitSectionChange(nextSection)) {
-            // it's not a legit section change, revert to current section
-            nextSection = status.currentSection;
-        }
+        const nextSection = getClosestSection(activeSections, status.currentSection);
+        const isLegit = isLegitSectionChange(nextSection);
 
         if (!status.gameStarted) {
-            // game is not started yet, and one of the
+            // game is not started yet, and one of the ..
             if (nextSection === 0) {
                 // active sections is the starting area (0)
                 changeMode(modes.ready);
-            } else if (nextSection !== 0) {
+            } else if (status.currentMode === modes.ready && nextSection !== 0 && isLegit) {
+                // game mode was previously "ready"
                 // active sections does not include starting area (0)
                 // and it seems like a legit section change
 
-                // start the game!
-                switchSection(nextSection);
+                // start the game first, then increment the section!
                 changeMode(modes.started);
+                switchSection(nextSection);
+            } else if (nextSection !== 0 && !isLegit) {
+                // ball is misplaced, send instructions
+                changeMode(modes.instructions);
             }
         } else {
-            // game is started
-            if (nextSection === status.highestSection) {
-                // we've entered the last and final section. Finish the game.
+            // game is started, and we've ..
+            if (nextSection === status.lastSectionNumber && isLegit) {
+                // entered the last and final section and its legit. Finish the game.
                 switchSection(nextSection);
                 changeMode(modes.finish);
+            } else if (isLegit) {
+                // advanced or gone back since last active section
+                switchSection(nextSection);
             }
         }
     }
@@ -253,7 +296,7 @@ const onActiveSections = activeSections => {
 // track active section from detector backend, notify frontend of changes
 const track = () => {
     try {
-        backendSocket.emit(gameClientMsg.requestActiveSections);
+        emitToBackendIfConnected(gameClientMsg.requestActiveSectionsWithoutZoneData);
 
         status.errorMessage = "";
         setTimeout(track, 1000);

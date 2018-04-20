@@ -17,7 +17,9 @@ const modes = {
     finish: "finish"
 };
 
-const clientMsg = {};
+const clientMsg = {
+    requestMode: "requestMode"
+};
 
 const gameServerMsg = {
     disconnect: "disconnect",
@@ -62,6 +64,16 @@ export class Play extends React.Component {
         this.socket.disconnect();
     }
 
+    requestInitialData() {
+        this.emitIfConnected(clientMsg.requestMode);
+    }
+
+    emitIfConnected(...args) {
+        if (this.socket && this.socket.connected) {
+            this.socket.emit.apply(this.socket, args);
+        }
+    }
+
     subscribe() {
         // connection-related
         const setConnected = () => {
@@ -92,7 +104,7 @@ export class Play extends React.Component {
                             setDisconnected();
                             break;
                         case gameServerMsg.mode:
-                            this.setState({ status: data });
+                            this.setState({ status: data.status });
                             break;
                         default:
                             break;
@@ -125,7 +137,7 @@ export class Play extends React.Component {
                 case modes.instructions:
                     return Instructions;
                 default:
-                    return Started;
+                    return Instructions;
             }
         };
         const Component = getComponent();
