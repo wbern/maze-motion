@@ -9,7 +9,8 @@ export class Ready extends React.Component {
     render() {
         return (
             <div className="Ready">
-                <p>Ball is in position. Ready when you are!</p>
+                <span>Ball is in position, {this.props.children}.</span>
+                <span>Ready when you are!</span>
                 {/* <p>{JSON.stringify(this.props.status)}</p> */}
             </div>
         );

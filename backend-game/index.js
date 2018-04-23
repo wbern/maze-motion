@@ -19,7 +19,9 @@ const modes = {
 
 const settings = {
     ballMissingSecondsLimit: 3,
-    ballSectionChangeAcceptanceLimit: 3
+    ballSectionChangeAcceptanceLimit: 3,
+    defaultName: "Anonymous",
+    nameCharacterLimit: 30
 };
 
 let status = {};
@@ -53,12 +55,17 @@ applySettings();
 const clientMsg = {
     connection: "connection",
     disconnect: "disconnect",
-    requestMode: "requestMode"
+    requestSettings: "requestSettings",
+    requestMode: "requestMode",
+    requestRecords: "requestRecords",
+    saveName: "saveName"
 };
 
 // messages going from this application (game-server) to the front-end
 const gameServerMsg = {
-    mode: "mode"
+    settings: "settings",
+    mode: "mode",
+    records: "records"
 };
 
 // messages going from this application (game server) to the back-end
@@ -66,7 +73,8 @@ const gameClientMsg = {
     connect: "connect",
     disconnect: "disconnect",
     requestActiveSections: "requestActiveSections",
-    requestActiveSectionsNormalizedWithoutZoneData: "requestActiveSectionsNormalizedWithoutZoneData",
+    requestActiveSectionsNormalizedWithoutZoneData:
+        "requestActiveSectionsNormalizedWithoutZoneData",
     requestSections: "requestSections"
 };
 
@@ -85,10 +93,26 @@ io.on(clientMsg.connection, function(frontendSocket) {
 
         frontendSocket.on(
             msg,
-            function(/* data*/) {
+            function(data) {
                 switch (msg) {
                 case clientMsg.requestMode:
                     emitCurrentModeAndStatus();
+                    break;
+                case clientMsg.requestRecords:
+                    frontendSocket.emit(gameServerMsg.records, db.getRecords());
+                    break;
+                case clientMsg.requestSettings:
+                    frontendSocket.emit(gameServerMsg.settings, settings);
+                    break;
+                case clientMsg.saveName:
+                    if(!data) {
+                        data = settings.defaultName;
+                    }
+                    
+                    status.currentName =
+                            data.length > settings.nameCharacterLimit
+                                ? "Mr. \"I just learned how to hack\""
+                                : data;
                     break;
                 default:
                     break;
@@ -189,6 +213,15 @@ const changeMode = mode => {
             status.endTime = status.ballMissingStartTime || new Date();
             status.gameStarted = false;
             status.currentMode = mode;
+
+            // record the score
+            db.addRecord(
+                status.highestSection,
+                status.endTime - status.startTime,
+                status.currentName || "Anonymous"
+            );
+            io.emit(gameServerMsg.records, db.getRecords());
+
             emitCurrentModeAndStatus();
             break;
         default:

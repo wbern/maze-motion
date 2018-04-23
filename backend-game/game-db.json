@@ -1,1 +1,24 @@
-{}
+{
+  "records": [
+    {
+      "section": 3,
+      "duration": 2971,
+      "name": "Name"
+    },
+    {
+      "section": 5,
+      "duration": 7542,
+      "name": "Name"
+    },
+    {
+      "section": 2,
+      "duration": 891,
+      "name": "Name"
+    },
+    {
+      "section": 3,
+      "duration": 4823,
+      "name": "Name"
+    }
+  ]
+}

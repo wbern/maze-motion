@@ -12,9 +12,29 @@ class db {
         this.lowdb = low(adapter);
         global.db = this.lowdb;
 
+        this.lowdb.defaults(defaults).write();
+    }
+
+    addRecord(section, duration, name) {
         this.lowdb
-            .defaults(defaults)
+            .get("records")
+            .push({
+                section,
+                duration,
+                name
+            })
             .write();
+    }
+
+    getRecords(limit = 50) {
+        return this.lowdb
+            .get("records")
+            .sortBy("duration")
+            .reverse()
+            .sortBy("section")
+            .reverse()
+            .take(limit)
+            .value();
     }
 
     // writeSection(index, zones) {

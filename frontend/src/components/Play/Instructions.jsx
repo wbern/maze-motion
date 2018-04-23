@@ -5,7 +5,7 @@ export class Instructions extends React.Component {
     render() {
         return (
             <div className="Instructions">
-                <p>Put the ball in the starting area</p>
+                <span>Put the ball in the starting area, {this.props.children}</span>
                 {/* <p>{JSON.stringify(this.props.status)}</p> */}
             </div>
         );

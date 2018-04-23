@@ -1,5 +1,18 @@
 import React from "react";
 
+import {
+    Grid,
+    Button,
+    Row,
+    Col,
+    FormControl,
+    InputGroup,
+    DropdownButton,
+    MenuItem,
+    Form,
+    ControlLabel
+} from "react-bootstrap";
+
 import Constants from "../Constants";
 import openSocket from "socket.io-client";
 
@@ -18,31 +31,41 @@ const modes = {
 };
 
 const clientMsg = {
-    requestMode: "requestMode"
+    requestMode: "requestMode",
+    requestSettings: "requestSettings",
+    requestRecords: "requestRecords",
+    saveName: "saveName"
 };
 
 const gameServerMsg = {
     disconnect: "disconnect",
     connect: "connect",
-    mode: "mode"
+    settings: "settings",
+    mode: "mode",
+    records: "records"
 };
-
-// kits colors
-// #62A6A3
-// #B0AE97
-// #F37F4A
-// #C1AF49
 
 export class Play extends React.Component {
     constructor(props) {
         super(props);
 
         this.state = {
+            settings: {
+                // default values
+                nameCharacterLimit: 30,
+                defaultName: ""
+            },
+            currentName: null,
             backgroundColorIndex: Math.floor(Math.random() * Math.floor(4) + 1),
             status: {}
         };
         // open socket to game server
         this.socket = openSocket(Constants.gameServerAddress);
+
+        this.onNameBlur = this.onNameBlur.bind(this);
+        this.onNameChange = this.onNameChange.bind(this);
+        this.getInputRef = this.getInputRef.bind(this);
+        this.onSubmit = this.onSubmit.bind(this);
     }
 
     componentDidMount() {
@@ -66,6 +89,8 @@ export class Play extends React.Component {
 
     requestInitialData() {
         this.emitIfConnected(clientMsg.requestMode);
+        this.emitIfConnected(clientMsg.requestRecords);
+        this.emitIfConnected(clientMsg.requestSettings);
     }
 
     emitIfConnected(...args) {
@@ -106,6 +131,15 @@ export class Play extends React.Component {
                         case gameServerMsg.mode:
                             this.setState({ status: data.status });
                             break;
+                        case gameServerMsg.records:
+                            this.setState({ records: data });
+                            break;
+                        case gameServerMsg.settings:
+                            this.setState({ settings: data });
+                            if (this.state.currentName === null) {
+                                this.setState({ currentName: data.defaultName });
+                            }
+                            break;
                         default:
                             break;
                     }
@@ -121,10 +155,49 @@ export class Play extends React.Component {
         });
     }
 
-    componentWillMount() {}
+    updateName(text, replaceEmpty = false) {
+        if (replaceEmpty && text === "") {
+            text = this.state.defaultName;
+        }
+        const finalName = text.substr(0, this.state.nameCharacterLimit);
+
+        if (finalName !== this.state.currentName) {
+            this.setState({
+                currentName: text.substr(0, this.state.nameCharacterLimit)
+            });
+            this.emitIfConnected(clientMsg.saveName, finalName);
+        }
+    }
+
+    onNameChange(e) {
+        this.updateName(e.target.value);
+    }
+
+    onNameBlur(e) {
+        this.updateName(e.target.value, true);
+    }
+
+    onSubmit(e) {
+        e.preventDefault();
+        this.updateName(this.state.currentName, true);
+    }
+
+    getInputRef(submit) {
+        // this.inputElement = submit;
+    }
+
+    componentDidUpdate() {
+        const input = document.querySelector(".Play-input");
+
+        if (input && document.activeElement !== input) {
+            const length = input.value.length;
+            input.focus();
+            input.setSelectionRange(length, length);
+        }
+    }
 
     getScreenByMode(mode) {
-        const propsToPass = { status: this.state.status };
+        const propsToPass = { status: this.state.status, currentName: "" };
 
         const getComponent = () => {
             switch (mode) {
@@ -142,14 +215,35 @@ export class Play extends React.Component {
         };
         const Component = getComponent();
 
-        return <Component {...propsToPass} />;
+        return (
+            <Component {...propsToPass}>
+                <span className="Play-inputWrapper">
+                    <Form inline onSubmit={this.onSubmit}>
+                        <FormControl
+                            style={{
+                                width:
+                                    Math.max((this.state.currentName || "").length * 0.65, 5) + "em"
+                            }}
+                            onChange={this.onNameChange}
+                            onBlur={this.onNameBlur}
+                            // onClick={(e) => e.target.select()}
+                            disabled={this.state.currentName === null}
+                            value={this.state.currentName}
+                            className="Play-input"
+                            type="text"
+                        />
+                    </Form>
+                </span>
+            </Component>
+        );
     }
 
     render() {
         return (
             <div
                 className={
-                    "Play Play-backgroundColor Play-backgroundColor-" + this.state.backgroundColorIndex
+                    "Play Play-backgroundColor Play-backgroundColor-" +
+                    this.state.backgroundColorIndex
                 }
             >
                 {this.getScreenByMode(this.state.status.currentMode)}

@@ -7,6 +7,24 @@
     font-size: 4vw;
 }
 
+.Play-inputWrapper {
+    width: auto;
+    display: inline-block;
+}
+
+.Play-input{
+    min-width: 5px;
+    line-height: 0;
+
+    background: rgba(0,0,0,0.3);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    color: unset;
+    font-size: unset;
+    height: unset;
+}
+
 .Play-backgroundColor {
     transition: background-color 1000ms linear;
 }
