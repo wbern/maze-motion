@@ -1,4 +1,5 @@
 const fs = require("fs");
+const shortid = require("shortid");
 
 class db {
     constructor() {
@@ -15,25 +16,30 @@ class db {
         this.lowdb.defaults(defaults).write();
     }
 
-    addRecord(section, duration, name) {
+    addRecord(section, duration, name, date) {
+        const id = shortid.generate();
+
         this.lowdb
             .get("records")
             .push({
+                id,
                 section,
                 duration,
-                name
+                name,
+                date
             })
             .write();
+
+        return id;
     }
 
-    getRecords(limit = 50) {
+    getRecords() {
         return this.lowdb
             .get("records")
             .sortBy("duration")
             .reverse()
             .sortBy("section")
             .reverse()
-            .take(limit)
             .value();
     }
 

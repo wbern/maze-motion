@@ -197,7 +197,7 @@ export class Play extends React.Component {
     }
 
     getScreenByMode(mode) {
-        const propsToPass = { status: this.state.status, currentName: "" };
+        const propsToPass = { status: this.state.status, records: this.state.records };
 
         const getComponent = () => {
             switch (mode) {
@@ -208,9 +208,9 @@ export class Play extends React.Component {
                 case modes.finish:
                     return Finish;
                 case modes.instructions:
-                    return Instructions;
+                    return Finish;
                 default:
-                    return Instructions;
+                    return Finish;
             }
         };
         const Component = getComponent();

@@ -4,14 +4,39 @@
     flex-direction: column;
     justify-content: center;
 
-    opacity: 0;
-    animation: new-item-animation .3s linear forwards;
+    /* opacity: 0; */
+}
+
+.Finish-leaderboard-wrapper {
+    height: 400px;
+    overflow: hidden;
+}
+
+.Finish-leaderboard-current {
+    font-weight: bold;
+}
+
+.Finish-leaderboard {
+    font-size: 2vw;
+    text-align: left;
+    width: 100%;
+
+    scroll-behavior: smooth;
+    /* animation: new-item-animation 2.0s linear forwards; */
+}
+
+.Finish-leaderboard th,td {
+    padding: 5px 20px;
+}
+
+.Finish-leaderboard-name {
+    width: 35%;
 }
 
 @keyframes new-item-animation {
     from {
-        opacity: 0;
-        transform: translateY(-2000px);
+        opacity: 1;
+        transform: translateY(2000px);
 }
 
     to {

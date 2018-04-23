@@ -42,7 +42,10 @@ const resetStatus = () => {
             lastSectionNumber: null
         },
         // values that should stick from before status reset
-        { lastSectionNumber: status.lastSectionNumber }
+        {
+            lastSectionNumber: status.lastSectionNumber,
+            currentName: status.currentName || settings.defaultName
+        }
     );
 };
 resetStatus();
@@ -105,10 +108,10 @@ io.on(clientMsg.connection, function(frontendSocket) {
                     frontendSocket.emit(gameServerMsg.settings, settings);
                     break;
                 case clientMsg.saveName:
-                    if(!data) {
+                    if (!data) {
                         data = settings.defaultName;
                     }
-                    
+
                     status.currentName =
                             data.length > settings.nameCharacterLimit
                                 ? "Mr. \"I just learned how to hack\""
@@ -215,12 +218,16 @@ const changeMode = mode => {
             status.currentMode = mode;
 
             // record the score
-            db.addRecord(
+            const id = db.addRecord(
                 status.highestSection,
                 status.endTime - status.startTime,
-                status.currentName || "Anonymous"
+                status.currentName || "Anonymous",
+                status.startTime
             );
-            io.emit(gameServerMsg.records, db.getRecords());
+            const records = db.getRecords();
+            status.rank = records.findIndex(r => r.id === id) + 1;
+            status.id = id;
+            io.emit(gameServerMsg.records, records.slice(0, 50));
 
             emitCurrentModeAndStatus();
             break;

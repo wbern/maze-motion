@@ -5,6 +5,7 @@
   "dependencies": {
     "ajv": "^6.4.0",
     "jsoneditor-react": "^0.1.9",
+    "moment": "^2.22.1",
     "react": "^16.2.0",
     "react-bootstrap": "^0.32.1",
     "react-dom": "^16.2.0",

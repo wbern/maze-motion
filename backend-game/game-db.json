@@ -3,22 +3,87 @@
     {
       "section": 3,
       "duration": 2971,
-      "name": "Name"
+      "name": "John",
+      "date": "2018-04-23T12:59:33.188Z"
     },
     {
       "section": 5,
       "duration": 7542,
-      "name": "Name"
+      "name": "Anna",
+      "date": "2018-04-23T12:59:33.188Z"
     },
     {
       "section": 2,
       "duration": 891,
-      "name": "Name"
+      "name": "Ola",
+      "date": "2018-04-23T12:59:33.188Z"
     },
     {
       "section": 3,
       "duration": 4823,
-      "name": "Name"
+      "name": "Petra",
+      "date": "2018-04-23T12:59:33.188Z"
+    },
+    {
+      "section": 9,
+      "duration": 23218,
+      "name": "Filip",
+      "date": "2018-04-23T12:59:33.188Z"
+    },
+    {
+      "section": 4,
+      "duration": 2125,
+      "name": "Annika",
+      "date": "2018-04-23T12:59:33.188Z"
+    },
+    {
+      "section": 3,
+      "duration": 2717,
+      "name": "Anonymous",
+      "date": "2018-04-23T12:59:33.188Z"
+    },
+    {
+      "section": 3,
+      "duration": 2112,
+      "name": "Anonymous",
+      "date": "2018-04-23T12:59:33.188Z"
+    },
+    {
+      "section": 3,
+      "duration": 1796,
+      "name": "AnonymousX",
+      "date": "2018-04-23T12:59:33.188Z"
+    },
+    {
+      "section": 3,
+      "duration": 2057,
+      "name": "AnonymousX",
+      "date": "2018-04-23T12:59:33.188Z"
+    },
+    {
+      "section": 2,
+      "duration": 2403,
+      "name": "Anonymous",
+      "date": "2018-04-23T12:59:33.188Z"
+    },
+    {
+      "section": 3,
+      "duration": 2084,
+      "name": "Anonymous",
+      "date": "2018-04-23T13:10:28.399Z"
+    },
+    {
+      "section": 3,
+      "duration": 1822,
+      "name": "Anonymous",
+      "date": "2018-04-23T13:21:55.161Z"
+    },
+    {
+      "id": "SkyLAUinf",
+      "section": 3,
+      "duration": 2090,
+      "name": "Anonymous",
+      "date": "2018-04-23T13:23:13.869Z"
     }
   ]
 }
