@@ -144,6 +144,7 @@ backendSocket.on(
                     case serverMsg.sections:
                         // get the highest section number and make it available via status object
                         status.lastSectionNumber = Math.max(...Object.keys(data));
+                        emitCurrentModeAndStatus();
                         break;
                     default:
                         break;
@@ -190,7 +191,7 @@ const emitCurrentModeAndStatus = optionalNewMode => {
     if (optionalNewMode) {
         status.currentMode = optionalNewMode;
     }
-    
+
     io.emit(gameServerMsg.mode, {
         mode: status.currentMode,
         status
@@ -204,7 +205,10 @@ const changeMode = mode => {
 
         switch (mode) {
         case modes.instructions:
+            emitCurrentModeAndStatus(mode);
+            break;
         case modes.ready:
+            resetStatus(); // to clear any old values
             emitCurrentModeAndStatus(mode);
             break;
         case modes.started:

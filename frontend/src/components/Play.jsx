@@ -1,16 +1,8 @@
 import React from "react";
 
 import {
-    Grid,
-    Button,
-    Row,
-    Col,
     FormControl,
-    InputGroup,
-    DropdownButton,
-    MenuItem,
     Form,
-    ControlLabel
 } from "react-bootstrap";
 
 import Constants from "../Constants";
@@ -252,11 +244,14 @@ export class Play extends React.Component {
     render() {
         return [
             <div
+                key="background"
                 className={
                     "Play-backgroundColor Play-backgroundColor-" + this.state.backgroundColorIndex
                 }
             />,
-            <div className="Play">{this.getScreenByMode(this.state.status.currentMode)}</div>
+            <div key="foreground" className="Play">
+                {this.getScreenByMode(this.state.status.currentMode)}
+            </div>
         ];
     }
 }

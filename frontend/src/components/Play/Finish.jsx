@@ -1,6 +1,8 @@
 import React from "react";
 import "./Finish.css";
 import moment from "moment";
+import seed from "seed-random";
+import { emojis } from "../../Constants";
 
 import { Row, Col } from "react-bootstrap";
 
@@ -67,6 +69,12 @@ export class Finish extends React.Component {
         // );
     }
 
+    getRandomEmojiiByText(text) {
+        const rng = seed(text, { global: false });
+        const index = Math.floor(rng() * emojis.length);
+        return emojis[index];
+    }
+
     getRecord(record, index) {
         const currentPlayThrough = this.isCurrentPlaythrough(record);
 
@@ -82,7 +90,9 @@ export class Finish extends React.Component {
                 <td>#{index + 1}</td>
                 <td>{record.section + " of " + this.props.status.lastSectionNumber}</td>
                 <td>{moment.duration(record.duration).asSeconds()}</td>
-                <td className="Finish-leaderboard-name">{record.name}</td>
+                <td className="Finish-leaderboard-name">
+                    {this.getRandomEmojiiByText(record.name) + " " + record.name}
+                </td>
                 <td>{record.date ? moment(record.date).fromNow() : "-"}</td>
             </tr>
         );
@@ -118,11 +128,25 @@ export class Finish extends React.Component {
         return results;
     }
 
+    getFinishGreetMessage() {
+        let message = "";
+
+        if (this.props.status.highestSection === this.props.status.lastSectionNumber) {
+            message = "Congratulations, you beat the game!";
+        } else if (this.props.status.rank <= this.state.recordLimit) {
+            message = "Well done, you're in the top " + this.state.recordLimit + ".";
+        } else {
+            message = "Game Over";
+        }
+
+        return <h1>{message}</h1>;
+    }
+
     getLeaderBoard() {
         return (
             <Row>
                 <Col xs={10} xsOffset={1} className="Finish-leaderboard-wrapper">
-                    <h1 style={{ color: "inherit" }}>Congratulations, you beat the game!</h1>
+                    {this.getFinishGreetMessage()}
                     <h4>Place the ball in the starting area to play.</h4>
                     <table className="Finish-leaderboard">
                         <tbody>
