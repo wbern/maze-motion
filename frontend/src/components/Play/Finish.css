@@ -50,6 +50,10 @@
     opacity: 0.8;
 }
 
+.Finish-leaderboard .progress {
+    margin: 0;
+}
+
 
 @keyframes new-item-animation {
     from {

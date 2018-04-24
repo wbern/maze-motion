@@ -4,7 +4,7 @@ import moment from "moment";
 import seed from "seed-random";
 import { emojis } from "../../Constants";
 
-import { Row, Col } from "react-bootstrap";
+import { Row, Col, ProgressBar } from "react-bootstrap";
 
 import { getTimeText } from "../Play.functions";
 
@@ -80,6 +80,14 @@ export class Finish extends React.Component {
     getRecord(record, index) {
         const currentPlayThrough = this.isCurrentPlaythrough(record);
 
+        let seconds = moment
+            .duration(record.duration)
+            .asSeconds()
+            .toFixed(1);
+        if (parseFloat(seconds) === Math.round(seconds)) {
+            seconds = parseInt(seconds, 10).toString();
+        }
+
         return (
             <tr
                 key={index + 1}
@@ -90,8 +98,10 @@ export class Finish extends React.Component {
                 }
             >
                 <td>#{index + 1}</td>
-                <td>{record.section + " of " + this.props.status.lastSectionNumber}</td>
-                <td>{moment.duration(record.duration).asSeconds()}</td>
+                <td><ProgressBar bsStyle="success" now={(record.section / this.props.status.lastSectionNumber) * 100} label={record.section} /></td>
+                <td>
+                    {seconds}
+                </td>
                 <td className="Finish-leaderboard-name">
                     {this.getRandomEmojiiByText(record.name) + " " + record.name}
                 </td>
@@ -155,7 +165,7 @@ export class Finish extends React.Component {
                             height: window.innerHeight + "px"
                         }}
                     >
-                        <Confetti width={window.innerWidth} height={window.innerHeight}/>
+                        <Confetti width={window.innerWidth} height={window.innerHeight} />
                     </div>
                 )}
                 <h1>{message}</h1>
