@@ -148,10 +148,13 @@ export class Finish extends React.Component {
         let message = "";
         let confetti = false;
 
-        if (this.props.status.highestSection === this.props.status.lastSectionNumber) {
+        if (
+            this.props.status.highestSection &&
+            this.props.status.highestSection === this.props.status.lastSectionNumber
+        ) {
             message = "Congratulations, you beat the game!";
             confetti = true;
-        } else if (this.props.status.rank <= this.state.recordLimit) {
+        } else if (this.props.status.rank && this.props.status.rank <= this.state.recordLimit) {
             message = "Well done, you're in the top " + this.state.recordLimit + ".";
         } else {
             message = "Game Over";

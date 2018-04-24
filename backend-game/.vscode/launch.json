@@ -7,10 +7,22 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Launch Program in Development",
             "runtimeExecutable": "node",
             "runtimeArgs": ["--inspect-brk=9230"],
             "env": {
+            },
+            "program": "${workspaceFolder}/index.js",
+            "port": 9230
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Program in Production",
+            "runtimeExecutable": "node",
+            "runtimeArgs": ["--inspect-brk=9230"],
+            "env": {
+                "NODE_ENV": "production"
             },
             "program": "${workspaceFolder}/index.js",
             "port": 9230
