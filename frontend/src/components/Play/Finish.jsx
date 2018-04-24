@@ -8,6 +8,8 @@ import { Row, Col } from "react-bootstrap";
 
 import { getTimeText } from "../Play.functions";
 
+import Confetti from "react-confetti";
+
 export class Finish extends React.Component {
     constructor(props) {
         super(props);
@@ -130,16 +132,35 @@ export class Finish extends React.Component {
 
     getFinishGreetMessage() {
         let message = "";
+        let confetti = false;
 
         if (this.props.status.highestSection === this.props.status.lastSectionNumber) {
             message = "Congratulations, you beat the game!";
+            confetti = true;
         } else if (this.props.status.rank <= this.state.recordLimit) {
             message = "Well done, you're in the top " + this.state.recordLimit + ".";
         } else {
             message = "Game Over";
         }
 
-        return <h1>{message}</h1>;
+        return (
+            <div>
+                {confetti && (
+                    <div
+                        style={{
+                            position: "fixed",
+                            top: 0,
+                            left: 0,
+                            width: window.innerWidth + "px",
+                            height: window.innerHeight + "px"
+                        }}
+                    >
+                        <Confetti width={window.innerWidth} height={window.innerHeight}/>
+                    </div>
+                )}
+                <h1>{message}</h1>
+            </div>
+        );
     }
 
     getLeaderBoard() {

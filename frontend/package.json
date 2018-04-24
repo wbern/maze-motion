@@ -8,9 +8,11 @@
     "moment": "^2.22.1",
     "react": "^16.2.0",
     "react-bootstrap": "^0.32.1",
+    "react-confetti": "^2.0.2",
     "react-dom": "^16.2.0",
     "react-fontawesome": "^1.6.1",
     "react-scripts": "1.1.1",
+    "react-sizeme": "^2.4.2",
     "seed-random": "^2.2.0",
     "socket.io-client": "^2.0.4"
   },

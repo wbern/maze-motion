@@ -61,7 +61,8 @@ const clientMsg = {
     requestSettings: "requestSettings",
     requestMode: "requestMode",
     requestRecords: "requestRecords",
-    saveName: "saveName"
+    saveName: "saveName",
+    requestFinish: "requestFinish"
 };
 
 // messages going from this application (game-server) to the front-end
@@ -98,27 +99,34 @@ io.on(clientMsg.connection, function(frontendSocket) {
             msg,
             function(data) {
                 switch (msg) {
-                case clientMsg.requestMode:
-                    emitCurrentModeAndStatus();
-                    break;
-                case clientMsg.requestRecords:
-                    frontendSocket.emit(gameServerMsg.records, db.getRecords());
-                    break;
-                case clientMsg.requestSettings:
-                    frontendSocket.emit(gameServerMsg.settings, settings);
-                    break;
-                case clientMsg.saveName:
-                    if (!data) {
-                        data = settings.defaultName;
-                    }
+                    case clientMsg.requestMode:
+                        emitCurrentModeAndStatus();
+                        break;
+                    case clientMsg.requestRecords:
+                        frontendSocket.emit(gameServerMsg.records, db.getRecords());
+                        break;
+                    case clientMsg.requestFinish:
+                        if (status.currentMode === modes.started) {
+                            changeMode(modes.finish);
+                        } else if (status.currentMode === modes.ready) {
+                            changeMode(modes.instructions);
+                        }
+                        break;
+                    case clientMsg.requestSettings:
+                        frontendSocket.emit(gameServerMsg.settings, settings);
+                        break;
+                    case clientMsg.saveName:
+                        if (!data) {
+                            data = settings.defaultName;
+                        }
 
-                    status.currentName =
+                        status.currentName =
                             data.length > settings.nameCharacterLimit
-                                ? "Mr. \"I just learned how to hack\""
+                                ? 'Mr. "I just learned how to hack"'
                                 : data;
-                    break;
-                default:
-                    break;
+                        break;
+                    default:
+                        break;
                 }
             }.bind(this)
         );
@@ -138,16 +146,16 @@ backendSocket.on(
                 msg,
                 function(data) {
                     switch (msg) {
-                    case serverMsg.activeSectionsNormalizedWithoutZoneData:
-                        onActiveSections(data);
-                        break;
-                    case serverMsg.sections:
-                        // get the highest section number and make it available via status object
-                        status.lastSectionNumber = Math.max(...Object.keys(data));
-                        emitCurrentModeAndStatus();
-                        break;
-                    default:
-                        break;
+                        case serverMsg.activeSectionsNormalizedWithoutZoneData:
+                            onActiveSections(data);
+                            break;
+                        case serverMsg.sections:
+                            // get the highest section number and make it available via status object
+                            status.lastSectionNumber = Math.max(...Object.keys(data));
+                            emitCurrentModeAndStatus();
+                            break;
+                        default:
+                            break;
                     }
                 }.bind(this)
             );
@@ -204,41 +212,41 @@ const changeMode = mode => {
         console.log("Mode: " + status.currentMode + " -> " + mode);
 
         switch (mode) {
-        case modes.instructions:
-            emitCurrentModeAndStatus(mode);
-            break;
-        case modes.ready:
-            resetStatus(); // to clear any old values
-            emitCurrentModeAndStatus(mode);
-            break;
-        case modes.started:
-            resetStatus(); // to clear any old values
-            status.startTime = new Date();
-            status.gameStarted = true;
-            emitCurrentModeAndStatus(mode);
-            break;
-        case modes.finish:
-            // set end time based on when the ball first went missing
-            status.endTime = status.ballMissingStartTime || new Date();
-            status.gameStarted = false;
-            status.currentMode = mode;
+            case modes.instructions:
+                emitCurrentModeAndStatus(mode);
+                break;
+            case modes.ready:
+                resetStatus(); // to clear any old values
+                emitCurrentModeAndStatus(mode);
+                break;
+            case modes.started:
+                resetStatus(); // to clear any old values
+                status.startTime = new Date();
+                status.gameStarted = true;
+                emitCurrentModeAndStatus(mode);
+                break;
+            case modes.finish:
+                // set end time based on when the ball first went missing
+                status.endTime = status.ballMissingStartTime || new Date();
+                status.gameStarted = false;
+                status.currentMode = mode;
 
-            // record the score
-            const id = db.addRecord(
-                status.highestSection,
-                status.endTime - status.startTime,
-                status.currentName || "Anonymous",
-                status.startTime
-            );
-            const records = db.getRecords();
-            status.rank = records.findIndex(r => r.id === id) + 1;
-            status.id = id;
-            io.emit(gameServerMsg.records, records.slice(0, 100));
+                // record the score
+                const id = db.addRecord(
+                    status.highestSection,
+                    status.endTime - status.startTime,
+                    status.currentName || "Anonymous",
+                    status.startTime
+                );
+                const records = db.getRecords();
+                status.rank = records.findIndex(r => r.id === id) + 1;
+                status.id = id;
+                io.emit(gameServerMsg.records, records.slice(0, 100));
 
-            emitCurrentModeAndStatus(mode);
-            break;
-        default:
-            break;
+                emitCurrentModeAndStatus(mode);
+                break;
+            default:
+                break;
         }
     }
 };
@@ -278,44 +286,45 @@ const getClosestSection = (sections, currentSection) => {
     );
 };
 
-const onActiveSections = activeSections => {
-    if (activeSections.length === 0) {
-        // ball missing
-        if (!status.gameStarted) {
-            // game is not started
-            if (status.currentMode !== modes.instructions && status.currentMode !== modes.finish) {
-                // mode is not on "instructions" nor "finish"
-                if(status.currentMode !== modes.ready) {
-                    // we're not in ready-mode, send instructions
-                    // (this condition is somewhat of a work-around)
-                    changeMode(modes.instructions);
-                }
-            }
-        } else {
-            // game is started, but ball is gone
-            if (status.ballMissingStartTime === null) {
-                // ball just started being gone, set missing duration
-                status.ballMissingStartTime = new Date();
-            } else {
-                // ball's been gone more than once, check if it's gone too long
-                const ballMissingSeconds = (Date.now() - status.ballMissingStartTime) / 1000;
-                if (ballMissingSeconds > settings.ballMissingSecondsLimit) {
-                    // ball has been gone too long, finish game
-                    // emit "finish"
-                    changeMode(modes.finish);
-                }
-            }
-        }
+const onBallMissing = () => {
+    if (status.ballMissingStartTime === null) {
+        // ball just started being gone, set missing duration
+        status.ballMissingStartTime = new Date();
     } else {
+        // ball's been gone more than once, check if it's gone too long
+        const ballMissingSeconds = (Date.now() - status.ballMissingStartTime) / 1000;
+        if (ballMissingSeconds > settings.ballMissingSecondsLimit) {
+            // ball has been gone too long, finish game
+            // emit "finish"
+            changeMode(modes.finish);
+        }
+    }
+};
+
+const onActiveSections = activeSections => {
+    if (activeSections.length > 0) {
         // ball is present
-        // reset missing timer
+        // reset missing timer if it was set
         status.ballMissingStartTime = null;
 
         // get section closest to current section (respecting both behind and ahead of current)
         const nextSection = getClosestSection(activeSections, status.currentSection);
         const isLegit = isLegitSectionChange(nextSection);
 
-        if (!status.gameStarted) {
+        if (status.gameStarted) {
+            // game is started, and we've ..
+            if (nextSection === status.lastSectionNumber && isLegit) {
+                // entered the last and final section and its legit. Finish the game.
+                switchSection(nextSection);
+                changeMode(modes.finish);
+            } else if (isLegit) {
+                // advanced or gone back since last active section
+                switchSection(nextSection);
+            } else {
+                // ball is not in a legit position, mark it as missing
+                onBallMissing();
+            }
+        } else {
             // game is not started yet, and one of the ..
             if (nextSection === 0) {
                 // active sections is the starting area (0)
@@ -332,15 +341,21 @@ const onActiveSections = activeSections => {
                 // ball is misplaced, send instructions
                 changeMode(modes.instructions);
             }
+        }
+    } else {
+        // ball missing
+        if (status.gameStarted) {
+            // game is started, but ball is gone
+            onBallMissing();
         } else {
-            // game is started, and we've ..
-            if (nextSection === status.lastSectionNumber && isLegit) {
-                // entered the last and final section and its legit. Finish the game.
-                switchSection(nextSection);
-                changeMode(modes.finish);
-            } else if (isLegit) {
-                // advanced or gone back since last active section
-                switchSection(nextSection);
+            // game is not started
+            if (status.currentMode !== modes.instructions && status.currentMode !== modes.finish) {
+                // mode is not on "instructions" nor "finish"
+                if (status.currentMode !== modes.ready) {
+                    // we're not in ready-mode, send instructions
+                    // (this condition is somewhat of a work-around)
+                    changeMode(modes.instructions);
+                }
             }
         }
     }

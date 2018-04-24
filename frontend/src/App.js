@@ -16,7 +16,8 @@ class App extends Component {
         super(props);
 
         this.state = {
-            view: enums.VIEW
+            view: enums.VIEW,
+            hideNavBar: true
         };
     }
 

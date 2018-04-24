@@ -1,9 +1,6 @@
 import React from "react";
 
-import {
-    FormControl,
-    Form,
-} from "react-bootstrap";
+import { FormControl, Form } from "react-bootstrap";
 
 import Constants from "../Constants";
 import openSocket from "socket.io-client";
@@ -26,7 +23,8 @@ const clientMsg = {
     requestMode: "requestMode",
     requestSettings: "requestSettings",
     requestRecords: "requestRecords",
-    saveName: "saveName"
+    saveName: "saveName",
+    requestFinish: "requestFinish"
 };
 
 const gameServerMsg = {
@@ -68,6 +66,13 @@ export class Play extends React.Component {
         //     15000
         // );
 
+        window.onkeypress = function(e) {
+            if (e.code === "Backquote") {
+                // the key above the tab button. End current game
+                this.emitIfConnected(clientMsg.requestFinish);
+            }
+        }.bind(this);
+
         this.subscribe();
     }
 
@@ -84,6 +89,7 @@ export class Play extends React.Component {
 
     componentWillUnmount() {
         // clearInterval(this.backgroundColorInterval);
+        window.onkeypress = null;
 
         this.unsubscribe();
         this.socket.removeAllListeners();
@@ -132,7 +138,7 @@ export class Play extends React.Component {
                             setDisconnected();
                             break;
                         case gameServerMsg.mode:
-                            this.setState({ status: data.status });
+                            this.setState({ status: data.status, currentName: data.status.currentName });
                             break;
                         case gameServerMsg.records:
                             this.setState({ records: data });
