@@ -8,6 +8,11 @@
     /* opacity: 0; */
 }
 
+.Finish-row {
+    overflow-y: auto;
+    margin: 0;
+}
+
 .Finish-leaderboard-wrapper {
     margin-top: 20px;
     /* height: 400px;

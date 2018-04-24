@@ -144,7 +144,7 @@ export class Finish extends React.Component {
 
     getLeaderBoard() {
         return (
-            <Row>
+            <Row className="Finish-row">
                 <Col xs={10} xsOffset={1} className="Finish-leaderboard-wrapper">
                     {this.getFinishGreetMessage()}
                     <h4>Place the ball in the starting area to play.</h4>
