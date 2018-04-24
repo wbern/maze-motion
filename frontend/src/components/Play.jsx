@@ -5,7 +5,7 @@ import { FormControl, Form } from "react-bootstrap";
 import Constants from "../Constants";
 import openSocket from "socket.io-client";
 
-import Instructions from "./Play/Instructions";
+// import Instructions from "./Play/Instructions";
 import Ready from "./Play/Ready";
 import Started from "./Play/Started";
 import Finish from "./Play/Finish";
