@@ -186,7 +186,11 @@ const isLegitSectionChange = proposedSection => {
     );
 };
 
-const emitCurrentModeAndStatus = () => {
+const emitCurrentModeAndStatus = optionalNewMode => {
+    if (optionalNewMode) {
+        status.currentMode = optionalNewMode;
+    }
+    
     io.emit(gameServerMsg.mode, {
         mode: status.currentMode,
         status
@@ -201,15 +205,13 @@ const changeMode = mode => {
         switch (mode) {
         case modes.instructions:
         case modes.ready:
-            resetStatus(); // to clear any old values
-            status.currentMode = mode;
-            emitCurrentModeAndStatus();
+            emitCurrentModeAndStatus(mode);
             break;
         case modes.started:
+            resetStatus(); // to clear any old values
             status.startTime = new Date();
             status.gameStarted = true;
-            status.currentMode = mode;
-            emitCurrentModeAndStatus();
+            emitCurrentModeAndStatus(mode);
             break;
         case modes.finish:
             // set end time based on when the ball first went missing
@@ -227,9 +229,9 @@ const changeMode = mode => {
             const records = db.getRecords();
             status.rank = records.findIndex(r => r.id === id) + 1;
             status.id = id;
-            io.emit(gameServerMsg.records, records.slice(0, 50));
+            io.emit(gameServerMsg.records, records.slice(0, 100));
 
-            emitCurrentModeAndStatus();
+            emitCurrentModeAndStatus(mode);
             break;
         default:
             break;

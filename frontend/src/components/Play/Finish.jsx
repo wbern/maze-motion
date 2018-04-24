@@ -7,6 +7,17 @@ import { Row, Col } from "react-bootstrap";
 import { getTimeText } from "../Play.functions";
 
 export class Finish extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            showAllRecords: false,
+            recordLimit: 10
+        };
+
+        this.getRecord = this.getRecord.bind(this);
+    }
+
     componentWillMount() {}
 
     componentDidMount() {
@@ -56,54 +67,83 @@ export class Finish extends React.Component {
         // );
     }
 
-    getNumberOneRecord() {}
+    getRecord(record, index) {
+        const currentPlayThrough = this.isCurrentPlaythrough(record);
 
-    getAllRecordsButNumberOne() {}
+        return (
+            <tr
+                key={index + 1}
+                className={
+                    "Finish-leaderboard-rank-" +
+                    (index + 1) +
+                    (currentPlayThrough ? " Finish-leaderboard-current" : "")
+                }
+            >
+                <td>#{index + 1}</td>
+                <td>{record.section + " of " + this.props.status.lastSectionNumber}</td>
+                <td>{moment.duration(record.duration).asSeconds()}</td>
+                <td className="Finish-leaderboard-name">{record.name}</td>
+                <td>{record.date ? moment(record.date).fromNow() : "-"}</td>
+            </tr>
+        );
+    }
 
-    getPseudoRecord() {}
+    getRecords() {
+        if (!this.props.records) {
+            return null;
+        }
+
+        let results = null;
+
+        if (!this.state.showAllRecords) {
+            results = this.props.records.slice(0, this.state.recordLimit).map(this.getRecord);
+
+            if (this.props.status.rank > this.state.recordLimit) {
+                results.push(
+                    <tr key="...">
+                        <td>...</td>
+                    </tr>
+                );
+                results.push(
+                    this.getRecord(
+                        this.props.records[this.props.status.rank - 1],
+                        this.props.status.rank - 1
+                    )
+                );
+            }
+        } else {
+            results = this.props.records.map(this.getRecord);
+        }
+
+        return results;
+    }
 
     getLeaderBoard() {
-        this.margin = 0;
-
         return (
             <Row>
                 <Col xs={10} xsOffset={1} className="Finish-leaderboard-wrapper">
+                    <h1 style={{ color: "inherit" }}>Congratulations, you beat the game!</h1>
                     <h4>Place the ball in the starting area to play.</h4>
                     <table className="Finish-leaderboard">
-                        <tr>
-                            <th>Rank</th>
-                            <th>Sections</th>
-                            <th>Seconds</th>
-                            <th className="Finish-leaderboard-name">Name</th>
-                            <th>Date</th>
-                        </tr>
-                        {this.props.records &&
-                            this.props.records.map((record, recordIndex) => {
-                                const currentPlayThrough = this.isCurrentPlaythrough(record);
-
-                                return (
-                                    <tr
-                                        className={
-                                            "Finish-leaderboard-rank-" +
-                                            (recordIndex + 1) +
-                                            (currentPlayThrough
-                                                ? " Finish-leaderboard-current"
-                                                : "")
-                                        }
-                                    >
-                                        <td>#{recordIndex + 1}</td>
-                                        <td>
-                                            {record.section +
-                                                " of " +
-                                                this.props.status.lastSectionNumber}
-                                        </td>
-                                        <td>{moment.duration(record.duration).asSeconds()}</td>
-                                        <td className="Finish-leaderboard-name">{record.name}</td>
-                                        <td>{record.date ? moment(record.date).fromNow() : "-"}</td>
-                                    </tr>
-                                );
-                            })}
+                        <tbody>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Sections</th>
+                                <th>Seconds</th>
+                                <th className="Finish-leaderboard-name">Name</th>
+                                <th>Date</th>
+                            </tr>
+                            {this.getRecords()}
+                        </tbody>
                     </table>
+                    <h4
+                        onClick={() =>
+                            this.setState({ showAllRecords: !this.state.showAllRecords })
+                        }
+                        className="Finish-showAllButton"
+                    >
+                        {this.state.showAllRecords ? "Collapse" : "Show all"}
+                    </h4>
                 </Col>
             </Row>
         );

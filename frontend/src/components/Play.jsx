@@ -69,18 +69,29 @@ export class Play extends React.Component {
     }
 
     componentDidMount() {
-        this.backgroundColorInterval = setInterval(
-            function() {
-                this.setState({ backgroundColorIndex: this.state.backgroundColorIndex % 4 + 1 });
-            }.bind(this),
-            15000
-        );
+        // this.backgroundColorInterval = setInterval(
+        //     function() {
+        //         this.setState({ backgroundColorIndex: this.state.backgroundColorIndex % 4 + 1 });
+        //     }.bind(this),
+        //     15000
+        // );
 
         this.subscribe();
     }
 
+    componentWillUpdate(nextProps, nextState) {
+        if (
+            this.state.status &&
+            nextState.status &&
+            nextState.status.currentMode !== this.state.status.currentMode
+        ) {
+            // new mode, change background
+            this.setState({ backgroundColorIndex: this.state.backgroundColorIndex % 4 + 1 });
+        }
+    }
+
     componentWillUnmount() {
-        clearInterval(this.backgroundColorInterval);
+        // clearInterval(this.backgroundColorInterval);
 
         this.unsubscribe();
         this.socket.removeAllListeners();
@@ -239,16 +250,14 @@ export class Play extends React.Component {
     }
 
     render() {
-        return (
+        return [
             <div
                 className={
-                    "Play Play-backgroundColor Play-backgroundColor-" +
-                    this.state.backgroundColorIndex
+                    "Play-backgroundColor Play-backgroundColor-" + this.state.backgroundColorIndex
                 }
-            >
-                {this.getScreenByMode(this.state.status.currentMode)}
-            </div>
-        );
+            />,
+            <div className="Play">{this.getScreenByMode(this.state.status.currentMode)}</div>
+        ];
     }
 }
 
