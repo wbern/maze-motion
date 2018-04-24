@@ -22,7 +22,7 @@ const settings = {
     ballSectionChangeAcceptanceLimit: 4,
     defaultName: "Anonymous",
     nameCharacterLimit: 30,
-    badDetectionLimit: 3
+    badDetectionLimit: 4
 };
 
 let status = {};
@@ -40,7 +40,8 @@ const resetStatus = () => {
             startTime: null, // date
             endTime: null, // date
             ballMissingStartTime: null, // date
-            lastSectionNumber: null
+            lastSectionNumber: null,
+            waitingForActiveSection: false
         },
         // values that should stick from before status reset
         {
@@ -152,6 +153,7 @@ backendSocket.on(
                     switch (msg) {
                     case serverMsg.activeSectionsNormalizedWithoutZoneData:
                         onActiveSections(data);
+                        status.waitingForActiveSection = false;
                         break;
                     case serverMsg.sections:
                         // get the highest section number and make it available via status object
@@ -159,9 +161,7 @@ backendSocket.on(
                         emitCurrentModeAndStatus();
                         break;
                     case serverMsg.status:
-                        if (data.timings.ball < settings.badDetectionLimit) {
-                            io.emit(gameServerMsg.badDetection);
-                        } else if (data.timings.corners < settings.badDetectionLimit) {
+                        if (data.timings.corners < settings.badDetectionLimit) {
                             io.emit(gameServerMsg.badDetection);
                         } else if (data.timings.error > 0) {
                             io.emit(gameServerMsg.badDetection);
@@ -378,11 +378,19 @@ const onActiveSections = activeSections => {
 
 // track active section from detector backend, notify frontend of changes
 let statusSkips = 0;
-const statusMaxSkips = 5;
+const statusMaxSkips = 20;
 
 const track = () => {
     try {
-        emitToBackendIfConnected(gameClientMsg.requestActiveSectionsNormalizedWithoutZoneData);
+        if (!status.waitingForActiveSection || statusSkips >= statusMaxSkips) {
+            emitToBackendIfConnected(gameClientMsg.requestActiveSectionsNormalizedWithoutZoneData);
+
+            if (backendSocket && backendSocket.connected) {
+                status.waitingForActiveSection = true;
+            }
+
+            status.errorMessage = "";
+        }
 
         if (statusSkips < statusMaxSkips) {
             statusSkips++;
@@ -391,8 +399,7 @@ const track = () => {
             emitToBackendIfConnected(gameClientMsg.requestStatus);
         }
 
-        status.errorMessage = "";
-        setTimeout(track, 300);
+        setTimeout(track, 25);
     } catch (e) {
         status.errorMessage = e;
         console.error(e);
