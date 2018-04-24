@@ -5,6 +5,8 @@ import { FormControl, Form } from "react-bootstrap";
 import Constants from "../Constants";
 import openSocket from "socket.io-client";
 
+import FontAwesome from "react-fontawesome";
+
 // import Instructions from "./Play/Instructions";
 import Ready from "./Play/Ready";
 import Started from "./Play/Started";
@@ -32,7 +34,8 @@ const gameServerMsg = {
     connect: "connect",
     settings: "settings",
     mode: "mode",
-    records: "records"
+    records: "records",
+    badDetection: "badDetection"
 };
 
 export class Play extends React.Component {
@@ -45,6 +48,7 @@ export class Play extends React.Component {
                 nameCharacterLimit: 30,
                 defaultName: ""
             },
+            badDetection: false,
             currentName: null,
             backgroundColorIndex: Math.floor(Math.random() * Math.floor(4) + 1),
             status: {}
@@ -138,7 +142,10 @@ export class Play extends React.Component {
                             setDisconnected();
                             break;
                         case gameServerMsg.mode:
-                            this.setState({ status: data.status, currentName: data.status.currentName });
+                            this.setState({
+                                status: data.status,
+                                currentName: data.status.currentName
+                            });
                             break;
                         case gameServerMsg.records:
                             this.setState({ records: data });
@@ -148,6 +155,13 @@ export class Play extends React.Component {
                             if (this.state.currentName === null) {
                                 this.setState({ currentName: data.defaultName });
                             }
+                            break;
+                        case gameServerMsg.badDetection:
+                            this.setState({ badDetection: true });
+                            clearTimeout(this.badDetectionTimeout);
+                            this.badDetectionTimeout = setTimeout(() => {
+                                this.setState({ badDetection: false });
+                            }, 2000);
                             break;
                         default:
                             break;
@@ -249,6 +263,11 @@ export class Play extends React.Component {
 
     render() {
         return [
+            this.state.badDetection && (
+                <div key="badDetection" className="Play-badDetection">
+                    <FontAwesome size="2x" name={"eye-slash"} />
+                </div>
+            ),
             <div
                 key="background"
                 className={

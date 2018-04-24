@@ -113,7 +113,7 @@ const clientMsg = {
         "requestActiveSectionsNormalizedWithoutZoneData",
     requestStatus: "requestStatus",
     requestSettings: "requestSettings",
-    saveSettings: "saveSettings"
+    saveSettings: "saveSettings",
 };
 
 const serverMsg = {

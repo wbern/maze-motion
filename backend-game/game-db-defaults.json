@@ -1,3 +1,270 @@
 {
-    "records": []
-}
+    "records": [
+      {
+        "id": "H1sZd8n2M",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n2X",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n21",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n22",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n23",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n24",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n25",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n26",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n27",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n28",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n29",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n10",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n12",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd8n13",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "H1sZd814d",
+        "section": 5,
+        "duration": 3955,
+        "name": "wbern",
+        "date": "2018-04-24T07:08:43.634Z"
+      },
+      {
+        "id": "rkslKL3hf",
+        "section": 2,
+        "duration": 2165,
+        "name": "Anonymous",
+        "date": "2018-04-24T07:12:45.542Z"
+      },
+      {
+        "id": "ByZ1hUnnM",
+        "section": 2,
+        "duration": 34760,
+        "name": "Anonymous",
+        "date": "2018-04-24T07:24:35.418Z"
+      },
+      {
+        "id": "BkTghL2nf",
+        "section": 3,
+        "duration": 6390,
+        "name": "Anonymous",
+        "date": "2018-04-24T07:25:31.884Z"
+      },
+      {
+        "id": "SyHyJO3nG",
+        "section": 3,
+        "duration": 1988,
+        "name": "Anonymous",
+        "date": "2018-04-24T08:46:15.336Z"
+      },
+      {
+        "id": "SyXG1uhhz",
+        "section": 1,
+        "duration": 5433,
+        "name": "Test",
+        "date": "2018-04-24T08:46:58.729Z"
+      },
+      {
+        "id": "Bki4kd3nG",
+        "section": 9,
+        "duration": 21838,
+        "name": "Test",
+        "date": "2018-04-24T08:47:21.988Z"
+      },
+      {
+        "id": "HyMAg_22M",
+        "section": 2,
+        "duration": 1837,
+        "name": "Anonymous",
+        "date": "2018-04-24T08:54:29.039Z"
+      },
+      {
+        "id": "Bkwkbu23z",
+        "section": 3,
+        "duration": 1519,
+        "name": "Anonymous",
+        "date": "2018-04-24T08:54:50.112Z"
+      },
+      {
+        "id": "BJ2DLOn2f",
+        "section": 2,
+        "duration": 5103,
+        "name": "AnonymousO",
+        "date": "2018-04-24T09:18:20.335Z"
+      },
+      {
+        "id": "rJ0NwOhhM",
+        "section": 2,
+        "duration": 1418,
+        "name": "AnonymousOX",
+        "date": "2018-04-24T09:21:53.167Z"
+      },
+      {
+        "id": "HJ8zud32M",
+        "section": 1,
+        "duration": 96,
+        "name": "Anonymous",
+        "date": "2018-04-24T09:25:26.377Z"
+      },
+      {
+        "id": "r1DUOd23M",
+        "section": 3,
+        "duration": 41057,
+        "name": "Anonymous",
+        "date": "2018-04-24T09:25:55.225Z"
+      },
+      {
+        "id": "B1f3uun3G",
+        "section": 8,
+        "duration": 9928,
+        "name": "Anonymous",
+        "date": "2018-04-24T09:27:57.325Z"
+      },
+      {
+        "id": "rJBRFOn3M",
+        "section": 3,
+        "duration": 636,
+        "name": "Anonymous",
+        "date": "2018-04-24T09:32:57.165Z"
+      },
+      {
+        "id": "HyMg5u32z",
+        "section": 9,
+        "duration": 18027,
+        "name": "Anonymous",
+        "date": "2018-04-24T09:33:08.915Z"
+      },
+      {
+        "id": "HJDd6dn2f",
+        "section": 2,
+        "duration": 1837,
+        "name": "Anonymous",
+        "date": "2018-04-24T09:48:25.993Z"
+      },
+      {
+        "id": "Sy0Jgtnnf",
+        "section": 3,
+        "duration": 24072,
+        "name": "Anonymous",
+        "date": "2018-04-24T09:58:34.980Z"
+      },
+      {
+        "id": "r1u-3Yh3z",
+        "section": 5,
+        "duration": 44682,
+        "name": "Anonymous",
+        "date": "2018-04-24T10:49:55.211Z"
+      },
+      {
+        "id": "rymK3K22G",
+        "section": 9,
+        "duration": 14130,
+        "name": "player1",
+        "date": "2018-04-24T10:52:25.444Z"
+      },
+      {
+        "id": "By6eaF33G",
+        "section": 22,
+        "duration": 17511,
+        "name": "player2",
+        "date": "2018-04-24T10:54:27.453Z"
+      },
+      {
+        "id": "r1v_yc3nf",
+        "section": 0,
+        "duration": 1524567918942,
+        "name": "player2",
+        "date": null
+      },
+      {
+        "id": "ryVWx523z",
+        "section": 5,
+        "duration": 8126,
+        "name": "Anonymous§§§",
+        "date": "2018-04-24T11:07:30.319Z"
+      },
+      {
+        "id": "Sy-nu5n3M",
+        "section": 3,
+        "duration": 873,
+        "name": "Anonymous",
+        "date": "2018-04-24T11:44:36.676Z"
+      }
+    ]
+  }

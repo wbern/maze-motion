@@ -966,7 +966,7 @@
     "cameraGain": 0,
     "cornerIdentificationWarnLimit": 10,
     "sectionIdentification": {
-      "normalizationValue": 4
+      "normalizationValue": 3
     },
     "cornerIdentification": {
       "cornerPadding": 5,

@@ -98,10 +98,14 @@ export class Finish extends React.Component {
                 }
             >
                 <td>#{index + 1}</td>
-                <td><ProgressBar bsStyle="success" now={(record.section / this.props.status.lastSectionNumber) * 100} label={record.section} /></td>
                 <td>
-                    {seconds}
+                    <ProgressBar
+                        bsStyle="success"
+                        now={record.section / this.props.status.lastSectionNumber * 100}
+                        label={record.section}
+                    />
                 </td>
+                <td>{seconds}</td>
                 <td className="Finish-leaderboard-name">
                     {this.getRandomEmojiiByText(record.name) + " " + record.name}
                 </td>
@@ -179,18 +183,21 @@ export class Finish extends React.Component {
                 <Col xs={10} xsOffset={1} className="Finish-leaderboard-wrapper">
                     {this.getFinishGreetMessage()}
                     <h4>Place the ball in the starting area to play.</h4>
-                    <table className="Finish-leaderboard">
-                        <tbody>
-                            <tr>
-                                <th>Rank</th>
-                                <th>Sections</th>
-                                <th>Seconds</th>
-                                <th className="Finish-leaderboard-name">Name</th>
-                                <th>Date</th>
-                            </tr>
-                            {this.getRecords()}
-                        </tbody>
-                    </table>
+                    {this.props.records &&
+                        this.props.status.lastSectionNumber && (
+                            <table className="Finish-leaderboard">
+                                <tbody>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Sections</th>
+                                        <th>Seconds</th>
+                                        <th className="Finish-leaderboard-name">Name</th>
+                                        <th>Date</th>
+                                    </tr>
+                                    {this.getRecords()}
+                                </tbody>
+                            </table>
+                        )}
                     <h4
                         onClick={() =>
                             this.setState({ showAllRecords: !this.state.showAllRecords })

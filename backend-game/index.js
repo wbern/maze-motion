@@ -21,7 +21,8 @@ const settings = {
     ballMissingSecondsLimit: 3,
     ballSectionChangeAcceptanceLimit: 4,
     defaultName: "Anonymous",
-    nameCharacterLimit: 30
+    nameCharacterLimit: 30,
+    badDetectionLimit: 3
 };
 
 let status = {};
@@ -69,13 +70,15 @@ const clientMsg = {
 const gameServerMsg = {
     settings: "settings",
     mode: "mode",
-    records: "records"
+    records: "records",
+    badDetection: "badDetection"
 };
 
 // messages going from this application (game server) to the back-end
 const gameClientMsg = {
     connect: "connect",
     disconnect: "disconnect",
+    requestStatus: "requestStatus",
     requestActiveSections: "requestActiveSections",
     requestActiveSectionsNormalizedWithoutZoneData:
         "requestActiveSectionsNormalizedWithoutZoneData",
@@ -84,6 +87,7 @@ const gameClientMsg = {
 
 // messages from back-end
 const serverMsg = {
+    status: "status",
     activeSections: "activeSections",
     sections: "sections",
     activeSectionsNormalizedWithoutZoneData: "activeSectionsNormalizedWithoutZoneData"
@@ -99,34 +103,34 @@ io.on(clientMsg.connection, function(frontendSocket) {
             msg,
             function(data) {
                 switch (msg) {
-                    case clientMsg.requestMode:
-                        emitCurrentModeAndStatus();
-                        break;
-                    case clientMsg.requestRecords:
-                        frontendSocket.emit(gameServerMsg.records, db.getRecords());
-                        break;
-                    case clientMsg.requestFinish:
-                        if (status.currentMode === modes.started) {
-                            changeMode(modes.finish);
-                        } else if (status.currentMode === modes.ready) {
-                            changeMode(modes.instructions);
-                        }
-                        break;
-                    case clientMsg.requestSettings:
-                        frontendSocket.emit(gameServerMsg.settings, settings);
-                        break;
-                    case clientMsg.saveName:
-                        if (!data) {
-                            data = settings.defaultName;
-                        }
+                case clientMsg.requestMode:
+                    emitCurrentModeAndStatus();
+                    break;
+                case clientMsg.requestRecords:
+                    frontendSocket.emit(gameServerMsg.records, db.getRecords());
+                    break;
+                case clientMsg.requestFinish:
+                    if (status.currentMode === modes.started) {
+                        changeMode(modes.finish);
+                    } else if (status.currentMode === modes.ready) {
+                        changeMode(modes.instructions);
+                    }
+                    break;
+                case clientMsg.requestSettings:
+                    frontendSocket.emit(gameServerMsg.settings, settings);
+                    break;
+                case clientMsg.saveName:
+                    if (!data) {
+                        data = settings.defaultName;
+                    }
 
-                        status.currentName =
+                    status.currentName =
                             data.length > settings.nameCharacterLimit
-                                ? 'Mr. "I just learned how to hack"'
+                                ? "Mr. \"I just learned how to hack\""
                                 : data;
-                        break;
-                    default:
-                        break;
+                    break;
+                default:
+                    break;
                 }
             }.bind(this)
         );
@@ -146,16 +150,27 @@ backendSocket.on(
                 msg,
                 function(data) {
                     switch (msg) {
-                        case serverMsg.activeSectionsNormalizedWithoutZoneData:
-                            onActiveSections(data);
-                            break;
-                        case serverMsg.sections:
-                            // get the highest section number and make it available via status object
-                            status.lastSectionNumber = Math.max(...Object.keys(data));
-                            emitCurrentModeAndStatus();
-                            break;
-                        default:
-                            break;
+                    case serverMsg.activeSectionsNormalizedWithoutZoneData:
+                        onActiveSections(data);
+                        break;
+                    case serverMsg.sections:
+                        // get the highest section number and make it available via status object
+                        status.lastSectionNumber = Math.max(...Object.keys(data));
+                        emitCurrentModeAndStatus();
+                        break;
+                    case serverMsg.status:
+                        if (data.timings.ball < settings.badDetectionLimit) {
+                            io.emit(gameServerMsg.badDetection);
+                        } else if (data.timings.corners < settings.badDetectionLimit) {
+                            io.emit(gameServerMsg.badDetection);
+                        } else if (data.timings.error > 0) {
+                            io.emit(gameServerMsg.badDetection);
+                        } else if (data.timings.general < settings.badDetectionLimit) {
+                            io.emit(gameServerMsg.badDetection);
+                        }
+                        break;
+                    default:
+                        break;
                     }
                 }.bind(this)
             );
@@ -212,41 +227,41 @@ const changeMode = mode => {
         console.log("Mode: " + status.currentMode + " -> " + mode);
 
         switch (mode) {
-            case modes.instructions:
-                emitCurrentModeAndStatus(mode);
-                break;
-            case modes.ready:
-                resetStatus(); // to clear any old values
-                emitCurrentModeAndStatus(mode);
-                break;
-            case modes.started:
-                resetStatus(); // to clear any old values
-                status.startTime = new Date();
-                status.gameStarted = true;
-                emitCurrentModeAndStatus(mode);
-                break;
-            case modes.finish:
-                // set end time based on when the ball first went missing
-                status.endTime = status.ballMissingStartTime || new Date();
-                status.gameStarted = false;
-                status.currentMode = mode;
+        case modes.instructions:
+            emitCurrentModeAndStatus(mode);
+            break;
+        case modes.ready:
+            resetStatus(); // to clear any old values
+            emitCurrentModeAndStatus(mode);
+            break;
+        case modes.started:
+            resetStatus(); // to clear any old values
+            status.startTime = new Date();
+            status.gameStarted = true;
+            emitCurrentModeAndStatus(mode);
+            break;
+        case modes.finish:
+            // set end time based on when the ball first went missing
+            status.endTime = status.ballMissingStartTime || new Date();
+            status.gameStarted = false;
+            status.currentMode = mode;
 
-                // record the score
-                const id = db.addRecord(
-                    status.highestSection,
-                    status.endTime - status.startTime,
-                    status.currentName || "Anonymous",
-                    status.startTime
-                );
-                const records = db.getRecords();
-                status.rank = records.findIndex(r => r.id === id) + 1;
-                status.id = id;
-                io.emit(gameServerMsg.records, records.slice(0, 100));
+            // record the score
+            const id = db.addRecord(
+                status.highestSection,
+                status.endTime - status.startTime,
+                status.currentName || "Anonymous",
+                status.startTime
+            );
+            const records = db.getRecords();
+            status.rank = records.findIndex(r => r.id === id) + 1;
+            status.id = id;
+            io.emit(gameServerMsg.records, records.slice(0, 100));
 
-                emitCurrentModeAndStatus(mode);
-                break;
-            default:
-                break;
+            emitCurrentModeAndStatus(mode);
+            break;
+        default:
+            break;
         }
     }
 };
@@ -362,9 +377,19 @@ const onActiveSections = activeSections => {
 };
 
 // track active section from detector backend, notify frontend of changes
+let statusSkips = 0;
+const statusMaxSkips = 5;
+
 const track = () => {
     try {
         emitToBackendIfConnected(gameClientMsg.requestActiveSectionsNormalizedWithoutZoneData);
+
+        if (statusSkips < statusMaxSkips) {
+            statusSkips++;
+        } else {
+            statusSkips = 0;
+            emitToBackendIfConnected(gameClientMsg.requestStatus);
+        }
 
         status.errorMessage = "";
         setTimeout(track, 300);

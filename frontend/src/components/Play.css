@@ -9,6 +9,13 @@
     font-size: 4vw;
 }
 
+.Play-badDetection {
+    padding: 10px;
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
 .Play-inputWrapper {
     width: auto;
     display: inline-block;
