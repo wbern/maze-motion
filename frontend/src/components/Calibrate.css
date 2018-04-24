@@ -4,6 +4,10 @@
     align-items: center;
 }
 
+.calibrate-madeby {
+    opacity: 0.3;
+}
+
 .formControl {
     margin: 2px 4px;
 }

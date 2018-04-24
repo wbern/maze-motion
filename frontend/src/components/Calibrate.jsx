@@ -336,7 +336,7 @@ class Calibrate extends Component {
             <div className="calibrate">
                 <Grid>
                     <Row>
-                        <h2 className="text-left"><small>Made by William Bernting</small></h2>
+                        <h5 className="calibrate-madeby text-left">Made by William Bernting</h5>
                     </Row>
                     <Row>
                         <Col xs={7}>

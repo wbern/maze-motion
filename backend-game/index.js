@@ -19,7 +19,7 @@ const modes = {
 
 const settings = {
     ballMissingSecondsLimit: 3,
-    ballSectionChangeAcceptanceLimit: 3,
+    ballSectionChangeAcceptanceLimit: 4,
     defaultName: "Anonymous",
     nameCharacterLimit: 30
 };
@@ -285,7 +285,11 @@ const onActiveSections = activeSections => {
             // game is not started
             if (status.currentMode !== modes.instructions && status.currentMode !== modes.finish) {
                 // mode is not on "instructions" nor "finish"
-                changeMode(modes.instructions);
+                if(status.currentMode !== modes.ready) {
+                    // we're not in ready-mode, send instructions
+                    // (this condition is somewhat of a work-around)
+                    changeMode(modes.instructions);
+                }
             }
         } else {
             // game is started, but ball is gone
