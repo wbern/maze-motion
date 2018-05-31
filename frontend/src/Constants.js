@@ -1,6 +1,6 @@
 export const Constants = {
-    gameServerAddress: "http://localhost:9090",
-    serverAddress: "http://localhost:8080"
+    gameServerAddress: window.location.hostname + ":" + "9090", //"http://localhost:9090",
+    serverAddress: window.location.hostname + ":" + "8080"
 };
 
 export const emojis = [
