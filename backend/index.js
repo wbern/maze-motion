@@ -113,7 +113,7 @@ const clientMsg = {
         "requestActiveSectionsNormalizedWithoutZoneData",
     requestStatus: "requestStatus",
     requestSettings: "requestSettings",
-    saveSettings: "saveSettings",
+    saveSettings: "saveSettings"
 };
 
 const serverMsg = {
@@ -188,6 +188,13 @@ const setActiveSections = activeSections => {
     //         ", Raw: " +
     //         JSON.stringify(status.activeSections)
     // );
+};
+
+const cycleMat = (matName, matArray, newMat) => {
+    if (matArray[matName] && matArray[matName].release) {
+        matArray[matName].release();
+    }
+    matArray[matName] = newMat;
 };
 
 // socket endpoints
@@ -313,7 +320,7 @@ io.on(clientMsg.connection, function(socket) {
 
 const track = () => {
     wCap.readAsync().then(board => {
-        mats["Image"] = board;
+        cycleMat("Image", mats, board);
 
         try {
             // get image transformation using corners
@@ -327,8 +334,8 @@ const track = () => {
                 settings.cornerIdentification,
                 settings.resolution
             );
-            mats["Corners Transformation Matrix"] = transformationMatrixMat;
-            mats["Corners Mask"] = maskedCornersMat;
+            cycleMat("Corners Transformation Matrix", mats, transformationMatrixMat);
+            cycleMat("Corners Mask", mats, maskedCornersMat);
             status.foundCorners = foundCorners;
 
             // visual aid to show which corners were recognized
@@ -353,22 +360,26 @@ const track = () => {
 
             if (mats["Corners Transformation Matrix"]) {
                 // we have the 2D transformation matrix, make the board 2D
-                mats["2D Image"] = mats["Image"].warpPerspective(
-                    mats["Corners Transformation Matrix"],
-                    new cv.Size(settings.resolution.width, settings.resolution.height),
-                    // http://tanbakuchi.com/posts/comparison-of-openv-interpolation-algorithms/#Upsampling-comparison
-                    cv.INTER_CUBIC
+                cycleMat(
+                    "2D Image",
+                    mats,
+                    mats["Image"].warpPerspective(
+                        mats["Corners Transformation Matrix"],
+                        new cv.Size(settings.resolution.width, settings.resolution.height),
+                        // http://tanbakuchi.com/posts/comparison-of-openv-interpolation-algorithms/#Upsampling-comparison
+                        cv.INTER_CUBIC
+                    )
                 );
 
                 const sections = db.getSections();
 
                 const ball = findBall(mats["2D Image"], sections, settings.ballIdentification);
-                mats["Ball Background Mask"] = ball.backgroundMat;
-                mats["Ball Color Filtered Mask"] = ball.colorFilteredMat;
+                cycleMat("Ball Background Mask", mats, ball.backgroundMat);
+                cycleMat("Ball Color Filtered Mask", mats, ball.colorFilteredMat);
 
                 if (ball.circle) {
                     // ball was found
-                    mats["Ball Mask"] = ball.mat;
+                    cycleMat("Ball Mask", mats, ball.mat);
 
                     // get active sections
                     const activeSections = Object.keys(sections).filter(sectionName =>
