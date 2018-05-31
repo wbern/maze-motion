@@ -88,13 +88,13 @@ setInterval(() => {
 // app.get("/image", function(req, res) {
 //     if (retrievedMats["2D Image"]) {
 //         const image = cv.imencode(".jpg", retrievedMats["2D Image"]);
-//         const base64 = new Buffer(image).toString("base64");
+//         const base64 = Buffer.from(image).toString("base64");
 //         res.status(200).send(base64);
 //     } else {
 //         const mat = wCap.read();
 //         const image = cv.imencode(".jpg", mat);
 //         // let base64Image = Buffer.from(cv.imencode(".png", mat)).toString();
-//         const base64Image = new Buffer(image).toString("base64");
+//         const base64Image = Buffer.from(image).toString("base64");
 //         res.status(200).send(base64Image);
 //     }
 // });
@@ -283,7 +283,7 @@ io.on(clientMsg.connection, function(socket) {
                     if (data.cameraViewMode && mats[data.cameraViewMode]) {
                         socket.emit(
                             serverMsg.activeImage,
-                            new Buffer(cv.imencode(".png", mats[data.cameraViewMode]))
+                            Buffer.from(cv.imencode(".png", mats[data.cameraViewMode]))
                         );
                     }
                     break;
