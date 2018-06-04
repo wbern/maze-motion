@@ -15,7 +15,7 @@ const db = require("./db");
 // globals
 let settings = db.getSettings();
 
-const captureDelay = parseInt(process.env.captureDelay || 5); // 5 is prod-recommended for now
+const captureDelay = parseInt(process.env.captureDelay || 2); // 5 is prod-recommended for now
 const failedCaptureDelay = 1000;
 const frontendResolution = { height: 480, width: 640 };
 

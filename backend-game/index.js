@@ -19,7 +19,7 @@ const modes = {
 
 const settings = {
     ballMissingSecondsLimit: 3,
-    ballSectionChangeAcceptanceLimit: 4,
+    ballSectionChangeAcceptanceLimit: 7,
     defaultName: "Anonymous",
     nameCharacterLimit: 30,
     badDetectionLimit: 4
@@ -256,7 +256,7 @@ const changeMode = mode => {
             const records = db.getRecords();
             status.rank = records.findIndex(r => r.id === id) + 1;
             status.id = id;
-            io.emit(gameServerMsg.records, records.slice(0, 100));
+            io.emit(gameServerMsg.records, records);
 
             emitCurrentModeAndStatus(mode);
             break;
