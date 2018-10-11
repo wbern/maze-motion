@@ -4,6 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "preinstall": "npm run set-OPENCV4NODEJS_DISABLE_AUTOBUILD && npm run set-OPENCV_INCLUDE_DIR && npm run set-OPENCV_LIB_DIR && npm run set-OPENCV_BIN_DIR",
+    "save-OPENCV4NODEJS_DISABLE_AUTOBUILD": "set OPENCV4NODEJS_DISABLE_AUTOBUILD_SAVE=%OPENCV4NODEJS_DISABLE_AUTOBUILD%",
+    "save-OPENCV_INCLUDE_DIR": "set OPENCV_INCLUDE_DIR_SAVE=%OPENCV_INCLUDE_DIR%",
+    "save-OPENCV_LIB_DIR": "set OPENCV_LIB_DIR_SAVE=%OPENCV_LIB_DIR%",
+    "save-OPENCV_BIN_DIR": "set OPENCV_BIN_DIR_SAVE=%OPENCV_BIN_DIR%",
+    "restore-OPENCV4NODEJS_DISABLE_AUTOBUILD": "set OPENCV4NODEJS_DISABLE_AUTOBUILD=%OPENCV4NODEJS_DISABLE_AUTOBUILD_SAVE%",
+    "restore-OPENCV_INCLUDE_DIR": "set OPENCV_INCLUDE_DIR=%OPENCV_INCLUDE_DIR_SAVE%",
+    "restore-OPENCV_LIB_DIR": "set OPENCV_LIB_DIR=%OPENCV_LIB_DIR_SAVE%",
+    "restore-OPENCV_BIN_DIR": "set OPENCV_BIN_DIR=%OPENCV_BIN_DIR_SAVE%",
+    "set-OPENCV4NODEJS_DISABLE_AUTOBUILD": "set OPENCV4NODEJS_DISABLE_AUTOBUILD='1'",
+    "set-OPENCV_INCLUDE_DIR": "set OPENCV_INCLUDE_DIR='./opencv/build/include'",
+    "set-OPENCV_LIB_DIR": "set OPENCV_LIB_DIR='./opencv/build/x64/vc15/lib'",
+    "set-OPENCV_BIN_DIR": "set OPENCV_BIN_DIR='./opencv/build/bin'",
+    "nix-set-envs": "export OPENCV4NODEJS_DISABLE_AUTOBUILD='1'; export OPENCV_INCLUDE_DIR='./opencv/build/include'; export OPENCV_LIB_DIR='./opencv/build/x64/vc15/lib'; export OPENCV_BIN_DIR='./opencv/build/bin'",
     "start": "node index.js",
     "start-prod": "cross-env NODE_ENV=production devicePort=1 node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -14,12 +28,12 @@
     "cross-env": "^5.1.4",
     "express": "^4.16.3",
     "lowdb": "^1.0.0",
-    "opencv-build": "0.0.10",
     "opencv4nodejs": "^3.3.1",
     "socket.io": "^2.0.4"
   },
   "devDependencies": {
     "eslint": "^4.19.0",
+    "npm-run-all": "^4.1.3",
     "prettier-eslint": "^8.8.1"
   }
 }

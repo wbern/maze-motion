@@ -373,7 +373,7 @@ const track = () => {
 
                 const sections = db.getSections();
 
-                const ball = findBall(mats["2D Image"], sections, settings.ballIdentification);
+                const ball = findBall(mats["2D Image"], null, settings.ballIdentification);
                 cycleMat("Ball Background Mask", mats, ball.backgroundMat);
                 cycleMat("Ball Color Filtered Mask", mats, ball.colorFilteredMat);
 

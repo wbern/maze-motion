@@ -1,5 +1,7 @@
 const cv = require("opencv4nodejs");
 
+// const blobDetector = new cv.SimpleBlobDetector(new cv.SimpleBlobDetectorParams());
+
 module.exports = (boardImage, sections, options) => {
     // now try to normalize the flat image to have as many circular holes as possible
     const args = [
@@ -20,7 +22,7 @@ module.exports = (boardImage, sections, options) => {
     ];
 
     // mark a range of grays as completely white, onto the forCirclesMat
-    let backgroundMat = boardImage
+    const backgroundMat = boardImage
         // houghCircles requires grayscale
         .cvtColor(cv.COLOR_BGR2GRAY)
         // remove all existing pure-white colorings in the image
@@ -43,34 +45,41 @@ module.exports = (boardImage, sections, options) => {
     });
     colorFilteredMat = temp.bgrToGray().threshold(1, 255, cv.THRESH_BINARY);
 
+    // let res = blobDetector.detect(colorFilteredMat);
+    // cv.drawKeyPoints(colorFilteredMat, res);
+    // debugger;
+    // cv.imshowWait("", colorFilteredMat);
+
     // make a mask to filter the grayness to be only within the sections (to not read holes)
-    const sectionsMask = new cv.Mat(
-        boardImage.rows,
-        boardImage.cols,
-        cv.CV_8U,
-        new cv.Vec3(0, 0, 0)
-    );
-    // really make sure its black (buggy opencv?)
-    sectionsMask.drawRectangle(
-        new cv.Point2(0, 0),
-        new cv.Point2(sectionsMask.sizes[1], sectionsMask.sizes[0]),
-        new cv.Vec3(0, 0, 0),
-        cv.FILLED
-    );
-    Object.keys(sections).forEach(sectionName => {
-        sections[sectionName].zones.forEach(zone => {
-            sectionsMask.drawRectangle(
-                new cv.Point2(zone.x, zone.y),
-                new cv.Point2(zone.x + zone.width, zone.y + zone.height),
-                new cv.Vec(255, 255, 255),
-                cv.FILLED
-            );
+    if (sections) {
+        const sectionsMask = new cv.Mat(
+            boardImage.rows,
+            boardImage.cols,
+            cv.CV_8U,
+            new cv.Vec3(0, 0, 0)
+        );
+        // really make sure its black (buggy opencv?)
+        sectionsMask.drawRectangle(
+            new cv.Point2(0, 0),
+            new cv.Point2(sectionsMask.sizes[1], sectionsMask.sizes[0]),
+            new cv.Vec3(0, 0, 0),
+            cv.FILLED
+        );
+        Object.keys(sections).forEach(sectionName => {
+            sections[sectionName].zones.forEach(zone => {
+                sectionsMask.drawRectangle(
+                    new cv.Point2(zone.x, zone.y),
+                    new cv.Point2(zone.x + zone.width, zone.y + zone.height),
+                    new cv.Vec(255, 255, 255),
+                    cv.FILLED
+                );
+            });
         });
-    });
+    }
 
     // now remove the grayness from areas that are not within the sections mask
-    backgroundMat = backgroundMat.copy(sectionsMask);
-    colorFilteredMat = colorFilteredMat.copy(sectionsMask);
+    // backgroundMat = backgroundMat.copy(sectionsMask);
+    // colorFilteredMat = colorFilteredMat.copy(sectionsMask);
 
     const foundBall = {
         circle: undefined,
@@ -86,6 +95,7 @@ module.exports = (boardImage, sections, options) => {
     // record it as "foundBall".
 
     // visual aid
+
     foundCircles.forEach(circle => {
         // make a mask mat with same size as the old one
         const circleMask = new cv.Mat(backgroundMat.rows, backgroundMat.cols, cv.CV_8U);
@@ -125,13 +135,17 @@ module.exports = (boardImage, sections, options) => {
         );
 
         const matches = singleCircleWithRelevantWhitesMat.inRange(255, 255).countNonZero();
-        // get amount of non-matching grayness, but not the blackness outside the circle
-        const nonMatches = singleCircleWithRelevantWhitesMat.inRange(0, 253).countNonZero();
-        // get percent of circle that has matching grayness
-        const matchPercentage = matches / (matches + nonMatches);
+        let nonMatches = null;
+        let matchPercentage = null;
+        if(options.minPercentage && options.maxPercentage) {
+            // get amount of non-matching grayness, but not the blackness outside the circle
+            nonMatches = singleCircleWithRelevantWhitesMat.inRange(0, 253).countNonZero();
+            // get percent of circle that has matching grayness
+            matchPercentage = matches / (matches + nonMatches);
+        }
 
         // is the circle's grayness percentage within the acceptable range?
-        if (matchPercentage >= options.minPercentage && matchPercentage <= options.maxPercentage) {
+        if ((!options.minPercentage && !options.maxPercentage) || matchPercentage >= options.minPercentage && matchPercentage <= options.maxPercentage) {
             // get a mat of only the current circle with all colors in grayscale
             const isPaletteCountModeEnabled = options.minPaletteCount || options.maxPaletteCount;
             let paletteCount;
