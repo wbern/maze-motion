@@ -1,5 +1,5 @@
 const cv = require("opencv4nodejs");
-const getTransformationMatrixMat = require("./lib/getTransformationMatrixMat");
+const getTransformationMatrixMatNew = require("./lib/getTransformationMatrixMatNew");
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
 const findBall = require("./lib/findBall");
@@ -319,7 +319,7 @@ io.on(clientMsg.connection, function(socket) {
 });
 
 const track = () => {
-    wCap.readAsync().then(board => {
+    cv.imreadAsync("./board.png").then(board => {
         cycleMat("Image", mats, board);
 
         try {
@@ -329,7 +329,7 @@ const track = () => {
                 maskedCornersMat,
                 foundCorners,
                 foundContours
-            } = getTransformationMatrixMat(
+            } = getTransformationMatrixMatNew(
                 mats["Image"],
                 settings.cornerIdentification,
                 settings.resolution
@@ -434,7 +434,7 @@ const track = () => {
         } catch (e) {
             errorTrackingsPerSecond++;
             status.errorMessage = e;
-            console.error(e);
+            console.trace(e);
             setTimeout(track, failedCaptureDelay);
         }
     });

@@ -964,7 +964,7 @@
     },
     "cornerIdentification": {
       "cornerPadding": 5,
-      "cornerDilation": 7,
+      "cornerDilation": 1,
       "erodePixels": 0,
       "xScale": 1.3,
       "yScale": 1,
@@ -973,12 +973,12 @@
       "cornerHSVMasks": [
         {
           "min": [
-            47,
+            30,
             145,
-            80
+            120
           ],
           "max": [
-            120,
+            150,
             255,
             255
           ]
@@ -993,8 +993,8 @@
       "trimCircleEdgePercentage": 0.2,
       "minPaletteCount": 0,
       "maxPaletteCount": 0,
-      "maxPercentage": 0.9,
-      "minPercentage": 0.4,
+      "maxPercentage": 0,
+      "minPercentage": 0,
       "houghCircleSettings": {
         "minDist": 5,
         "cannyUpperThreshold": 30,
