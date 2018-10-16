@@ -319,6 +319,7 @@ io.on(clientMsg.connection, function(socket) {
 });
 
 const track = () => {
+    // wCap.readAsync().then(board => {
     cv.imreadAsync("./board.png").then(board => {
         cycleMat("Image", mats, board);
 
@@ -328,7 +329,9 @@ const track = () => {
                 transformationMatrixMat,
                 maskedCornersMat,
                 foundCorners,
-                foundContours
+                corners,
+                lines,
+                center
             } = getTransformationMatrixMatNew(
                 mats["Image"],
                 settings.cornerIdentification,
@@ -337,19 +340,6 @@ const track = () => {
             cycleMat("Corners Transformation Matrix", mats, transformationMatrixMat);
             cycleMat("Corners Mask", mats, maskedCornersMat);
             status.foundCorners = foundCorners;
-
-            // visual aid to show which corners were recognized
-            if (foundContours && settings.visualAid.cornerRectangles) {
-                foundContours.forEach(c => {
-                    const bounds = c.boundingRect();
-                    mats["Image"].drawRectangle(
-                        new cv.Point2(bounds.x, bounds.y),
-                        new cv.Point2(bounds.x + bounds.width, bounds.y + bounds.height),
-                        new cv.Vec(255, 0, 0),
-                        2
-                    );
-                });
-            }
 
             if (mats["Corners Transformation Matrix"]) {
                 status.cornerIdentificationFailCount = 0;
@@ -426,6 +416,34 @@ const track = () => {
                     // ball was NOT found
                     setActiveSections([]);
                 }
+            }
+
+            // visual aid to show which corners were recognized
+            if (corners && settings.visualAid.cornerRectangles) {
+                corners.forEach(point => {
+                    mats["Image"].drawCircle(
+                        new cv.Point2(point.x, point.y),
+                        3,
+                        new cv.Vec3(255, 0, 0),
+                        2
+                    );
+                });
+
+                mats["Image"].drawCircle(
+                    new cv.Point2(center.x, center.y),
+                    8,
+                    new cv.Vec3(255, 0, 255),
+                    2
+                );
+
+                lines.forEach(line => {
+                    mats["Image"].drawLine(
+                        new cv.Point2(line.x1, line.y1),
+                        new cv.Point2(line.x2, line.y2),
+                        new cv.Vec3(255, 0, 0),
+                        1
+                    );
+                });
             }
 
             generalTrackingsPerSecond++;

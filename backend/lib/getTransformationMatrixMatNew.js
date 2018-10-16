@@ -1,57 +1,6 @@
 const cv = require("opencv4nodejs");
 const math = require("mathjs");
 
-const getCorners = (contours, cornerPadding) => {
-    const bounds = contours.map(c => c.boundingRect());
-
-    const centeredValue = (axisValue, sizeValue) => axisValue + sizeValue / 2;
-
-    const highestTwoXBounds = bounds
-        .sort((a, b) => centeredValue(a.x, a.width) - centeredValue(b.x, b.width))
-        .slice(-2);
-    const lowestTwoXBounds = bounds
-        .sort((a, b) => centeredValue(b.x, b.width) - centeredValue(a.x, a.width))
-        .slice(-2);
-
-    // of the two right-most bounds, which one is upper and lower?
-    const topRight =
-        highestTwoXBounds[0].y < highestTwoXBounds[1].y
-            ? highestTwoXBounds[0]
-            : highestTwoXBounds[1];
-    const bottomRight =
-        highestTwoXBounds[0].y > highestTwoXBounds[1].y
-            ? highestTwoXBounds[0]
-            : highestTwoXBounds[1];
-    // of the two left-most bounds, which one is upper and lower?
-    const topLeft =
-        lowestTwoXBounds[0].y < lowestTwoXBounds[1].y ? lowestTwoXBounds[0] : lowestTwoXBounds[1];
-    const bottomLeft =
-        lowestTwoXBounds[0].y > lowestTwoXBounds[1].y ? lowestTwoXBounds[0] : lowestTwoXBounds[1];
-
-    return [
-        // top-left
-        new cv.Point(
-            centeredValue(topLeft.x, topLeft.width) - cornerPadding,
-            centeredValue(topLeft.y, topLeft.height) - cornerPadding
-        ),
-        // top-right
-        new cv.Point(
-            centeredValue(topRight.x, topRight.width) + cornerPadding,
-            centeredValue(topRight.y, topRight.height) - cornerPadding
-        ),
-        // bottom-right
-        new cv.Point(
-            centeredValue(bottomRight.x, bottomRight.width) + cornerPadding,
-            centeredValue(bottomRight.y, bottomRight.height) + cornerPadding
-        ),
-        // bottom-left
-        new cv.Point(
-            centeredValue(bottomLeft.x, bottomLeft.width) - cornerPadding,
-            centeredValue(bottomLeft.y, bottomLeft.height) + cornerPadding
-        )
-    ];
-};
-
 module.exports = (imageMat, options, targetResolution) => {
     const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
     let maskedCornersMat;
@@ -66,11 +15,6 @@ module.exports = (imageMat, options, targetResolution) => {
 
     // get the contours of the corners
     maskedCornersMat = maskedCornersMat.cvtColor(cv.COLOR_BGR2GRAY);
-    if (options.erodePixels && options.erodePixels > 0) {
-        maskedCornersMat = maskedCornersMat.erode(
-            new cv.Mat(Array(options.erodePixels).fill([255, 255, 255]), cv.CV_8U)
-        );
-    }
 
     // // maskedCornersMat = maskedCornersMat.gaussianBlur(
     // //     new cv.Size(1, 1),
@@ -78,83 +22,85 @@ module.exports = (imageMat, options, targetResolution) => {
     // //     5
     // // );
     maskedCornersMat = maskedCornersMat.threshold(0, 255, cv.THRESH_BINARY);
+    if (options.erodePixels && options.erodePixels > 0) {
+        maskedCornersMat = maskedCornersMat.erode(
+            new cv.Mat(Array(options.erodePixels).fill([255, 255, 255]), cv.CV_8U)
+        );
+    }
     maskedCornersMat = maskedCornersMat.erode(new cv.Mat(Array(6).fill([255, 255, 255]), cv.CV_8U));
-    maskedCornersMat = maskedCornersMat.canny(50, 50, 7, true);
-    const lines = maskedCornersMat.houghLinesP(1, Math.PI / 180, 25, 0, 50).map(line => ({
-        y2: line.x,
-        y1: line.z,
-        x1: line.y,
-        x2: line.w
-    }));
+    const threshold1 = 50;
+    const threshold2 = 50;
+    const apertureSize = 7;
+    const L2gradient = false;
+    maskedCornersMat = maskedCornersMat.canny(threshold1, threshold2, apertureSize, L2gradient);
+    // get lines of the matching edges mask
+    const rho = 1;
+    const theta = Math.PI / 180;
+    const threshold = 25;
+    const minLineLength = 80;
+    const maxLineGap = 150;
 
-    maskedCornersMat.drawRectangle(
-        new cv.Point2(0, 0),
-        new cv.Point2(maskedCornersMat.sizes[1], maskedCornersMat.sizes[0]),
-        new cv.Vec3(0, 0, 0),
-        cv.FILLED
-    );
+    const lines = maskedCornersMat
+        .houghLinesP(rho, theta, threshold, minLineLength, maxLineGap)
+        .map(line => ({
+            y2: line.x,
+            y1: line.z,
+            x1: line.y,
+            x2: line.w
+        }));
 
+    // map all the lines on separate x and y axis
     const linePoints = lines.reduce(
-        (coll, curr) => {
-            coll.x.push(curr.x1);
-            coll.x.push(curr.x2);
+        (collection, curr) => {
+            collection.x.push(curr.x1);
+            collection.x.push(curr.x2);
 
-            coll.y.push(curr.y1);
-            coll.y.push(curr.y2);
-            return coll;
+            collection.y.push(curr.y1);
+            collection.y.push(curr.y2);
+            return collection;
         },
         { x: [], y: [] }
     );
 
+    // sort the points on each axis
     linePoints.x = linePoints.x.sort((a, b) => a - b);
     linePoints.y = linePoints.y.sort((a, b) => a - b);
 
+    // get the extremes to later filter out far-away intersections
     const leftMostX = linePoints.x[0];
-    const rightMostX = linePoints.x.slice(-1);
+    const rightMostX = linePoints.x[linePoints.x.length - 1];
     const topMostY = linePoints.y[0];
-    const bottomMostY = linePoints.y.slice(-1);
+    const bottomMostY = linePoints.y[linePoints.y.length - 1];
 
-    const centerX = linePoints.x.reduce((total = 0, currX, index, arr) => {
-        total += arr[index - 1] ? Math.abs(currX - arr[index - 1]) : 0; // x
+    // 110% size of sides is acceptable for intersections
+    const acceptedMarginsForIntersectionsPercentage = 1.1;
 
-        // last?
-        if (index === arr.length - 1) {
-            return Number(arr[0]) + Number(total / 2);
-        }
+    // create geometric center in order to figure out the angles
+    const getCenter = arr =>
+        arr.reduce((total = 0, currX, index, arr) => {
+            total += arr[index - 1] ? Math.abs(currX - arr[index - 1]) : 0; // x
 
-        return Number(total);
-    }, 0);
+            // last?
+            if (index === arr.length - 1) {
+                return Number(arr[0]) + Number(total / 2);
+            }
 
-    const centerY = linePoints.y.reduce((total = 0, currX, index, arr) => {
-        total += arr[index - 1] ? Math.abs(currX - arr[index - 1]) : 0; // x
+            return Number(total);
+        }, 0);
 
-        // last?
-        if (index === arr.length - 1) {
-            return Number(arr[0]) + Number(total / 2);
-        }
+    const geoCenterX = getCenter(linePoints.x);
+    const geoCenterY = getCenter(linePoints.y);
 
-        return Number(total);
-    }, 0);
-
-    // const intersectionsByLength = [];
+    // get the intersections of all the lines
     const intersections = [];
-    const intersectionsByX = [];
-    const intersectionsByY = [];
-
     lines.forEach((line, i) => {
-        maskedCornersMat.drawLine(
-            new cv.Point2(line.x1, line.y1),
-            new cv.Point2(line.x2, line.y2),
-            new cv.Vec3(255, 255, 255),
-            1
-        );
-
         if (!line) {
             return;
         }
 
         lines.forEach((otherLine, j) => {
             if (i === j) {
+                // same line
                 return;
             }
 
@@ -172,23 +118,14 @@ module.exports = (imageMat, options, targetResolution) => {
                     y: Number(intersect[1])
                 };
 
+                // is the intersection reasonably within the area of the board?
                 if (
-                    intersect.x >= leftMostX &&
-                    intersect.x <= rightMostX &&
-                    intersect.y >= topMostY &&
-                    intersect.y <= bottomMostY
+                    intersect.x >= leftMostX / acceptedMarginsForIntersectionsPercentage &&
+                    intersect.x <= rightMostX * acceptedMarginsForIntersectionsPercentage &&
+                    intersect.y >= topMostY / acceptedMarginsForIntersectionsPercentage &&
+                    intersect.y <= bottomMostY * acceptedMarginsForIntersectionsPercentage
                 ) {
-                    // const length = Math.hypot(x1 - x2, y1 - y2);
-                    // intersectionsByLength[length] = intersectionsByLength[length] || [];
-                    // intersectionsByLength[length].push(intersect);
                     intersections.push(intersect);
-
-                    intersectionsByX[intersect.x] = intersectionsByX[intersect.x] || [];
-                    intersectionsByX[intersect.x].push(intersect);
-
-                    intersectionsByY[intersect.y] = intersectionsByY[intersect.y] || [];
-                    intersectionsByY[intersect.y].push(intersect);
-                    // intersectionsByY[intersect.y].push(intersect);
                 }
             }
         });
@@ -199,12 +136,13 @@ module.exports = (imageMat, options, targetResolution) => {
     const angles = [];
     intersections.forEach(intersection => {
         const angle =
-            Math.atan2(intersection.y - centerY, intersection.x - centerX) * 180 / Math.PI + 180;
+            Math.atan2(intersection.y - geoCenterY, intersection.x - geoCenterX) * 180 / Math.PI +
+            180;
         angles[Math.floor(angle)] = intersection;
     });
 
+    // get all the gaps (in degrees) between angles, with value referencing the angle index
     const gaps = {};
-
     Object.keys(angles)
         .sort((a, b) => a - b)
         .forEach((angle, index, arr) => {
@@ -214,17 +152,26 @@ module.exports = (imageMat, options, targetResolution) => {
             gaps[Math.floor(Math.abs(arr[(index + 1) % arr.length] - arr[index]))] = angle;
         });
 
-    const fourAngles = Object.keys(gaps)
+    //
+    const fourSharpestAngles = Object.keys(gaps)
         .slice(-4)
         .map(gapKey => Number(gaps[gapKey]));
 
-    const topRightPointz = angles.slice(fourAngles[0] + 1, fourAngles[1]);
-    const bottomRightPointz = angles.slice(fourAngles[1] + 1, fourAngles[2]);
-    const bottomLeftPointz = angles.slice(fourAngles[2] + 1, fourAngles[3]);
-    const topLeftPointz = angles.slice(0, fourAngles[0]).concat(angles.slice(fourAngles[3] + 1));
-    // TODO: Get 4 biggest angle gaps
+    const topRightPoints = angles
+        .slice(fourSharpestAngles[0] + 1, fourSharpestAngles[1])
+        .filter(a => a !== undefined);
+    const bottomRightPoints = angles
+        .slice(fourSharpestAngles[1] + 1, fourSharpestAngles[2])
+        .filter(a => a !== undefined);
+    const bottomLeftPoints = angles
+        .slice(fourSharpestAngles[2] + 1, fourSharpestAngles[3])
+        .filter(a => a !== undefined);
+    const topLeftPoints = angles
+        .slice(0, fourSharpestAngles[0])
+        .concat(angles.slice(fourSharpestAngles[3] + 1))
+        .filter(a => a !== undefined);
 
-    const getAveragePoint = arr =>
+    const avgPoint = arr =>
         arr.reduce((prev, current, index) => {
             if (current !== undefined) {
                 prev.x = (prev.x || 0) + current.x;
@@ -239,145 +186,41 @@ module.exports = (imageMat, options, targetResolution) => {
             return prev;
         });
 
-    const topRightPoint = getAveragePoint(topRightPointz);
-    const topLeftPoint = getAveragePoint(topLeftPointz);
-    const bottomRightPoint = getAveragePoint(bottomRightPointz);
-    const bottomLeftPoint = getAveragePoint(bottomLeftPointz);
+    const topRightPoint = avgPoint(topRightPoints);
+    const topLeftPoint = avgPoint(topLeftPoints);
+    const bottomRightPoint = avgPoint(bottomRightPoints);
+    const bottomLeftPoint = avgPoint(bottomLeftPoints);
 
-    // intersections.forEach(intersection => {
-    //     maskedCornersMat.drawCircle(
-    //         new cv.Point2(intersection.x, intersection.y),
-    //         10,
-    //         new cv.Vec3(255, 255, 255),
-    //         2
-    //     );
-    // });
+    const srcPoints = [topLeftPoint, topRightPoint, bottomRightPoint, bottomLeftPoint];
 
-    maskedCornersMat.drawCircle(
-        new cv.Point2(averagedTopRightPoint.x, averagedTopRightPoint.y),
-        5,
-        new cv.Vec3(255, 255, 255),
-        15
-    );
+    const minRes = Math.min(targetResolution.height, targetResolution.width);
 
-    maskedCornersMat.drawCircle(
-        new cv.Point2(centerX, centerY),
-        15,
-        new cv.Vec3(255, 255, 255),
-        -1
-    );
-    cv.imshowWait("center", maskedCornersMat);
+    // get the ratio between x and y
+    const width = minRes;
+    const height = minRes;
 
-    cv.imshowWait("canny", maskedCornersMat);
-    maskedCornersMat = maskedCornersMat.dilate(
-        new cv.Mat(Array(15).fill([255, 255, 255]), cv.CV_8U)
-    );
-    cv.imshowWait("dilate", maskedCornersMat);
-    // cv.imshowWait("canny", k);
-    // // maskedCornersMat.erode()
-    const mode = cv.RETR_EXTERNAL;
-    // // const mode = cv.RETR_CCOMP;
-    const findContoursMethod = cv.CHAIN_APPROX_SIMPLE;
-    // // const findContoursMethod = cv.CHAIN_APPROX_SIMPLE;
-    const foundContours = maskedCornersMat.findContours(mode, findContoursMethod);
+    const pad = options.boardPadding * -1;
 
-    const mat = new cv.Mat(maskedCornersMat.rows, maskedCornersMat.cols, cv.CV_8U);
-    mat.drawRectangle(
-        new cv.Point2(0, 0),
-        new cv.Point2(mat.sizes[1], mat.sizes[0]),
-        new cv.Vec3(0, 0, 0),
-        cv.FILLED
-    );
-    // mat.drawContours(foundContours, new cv.Vec3(255, 255, 255), { thickness: 10 });
-    // cv.imshowWait("colors", maskedCornersMat);
+    // make the destination points, with scaling
+    const topLeft = new cv.Point(0 - pad, 0 - pad);
+    const topRight = new cv.Point(width * options.xScale + pad, 0 - pad);
+    const bottomRight = new cv.Point(width * options.xScale + pad, height * options.yScale + pad);
+    const bottomLeft = new cv.Point(0 - pad, height * options.yScale + pad);
 
-    const largestContour = foundContours.reduce((prev, current) => {
-        return prev.area > current.area ? prev : current;
-    });
-    // mat.drawContours([largestContour], new cv.Vec3(255, 255, 255), { thickness: 10 });
-    // cv.imshowWait("contours", mat);
+    const dstPoints = [topLeft, topRight, bottomRight, bottomLeft];
 
-    const getContourDimensions = (c, rectangleDilation = 0) => {
-        const d = c.boundingRect();
-        return {
-            topLeft: new cv.Point2(d.x - rectangleDilation, d.y - rectangleDilation),
-            topRight: new cv.Point2(d.x + d.width + rectangleDilation, d.y - rectangleDilation),
-            bottomLeft: new cv.Point2(d.x - rectangleDilation, d.y + d.height + rectangleDilation),
-            bottomRight: new cv.Point2(
-                d.x + d.width + rectangleDilation,
-                d.y + d.height + rectangleDilation
-            )
-        };
-    };
-
-    // draw rectangles around each contour to absorb smaller neighbouring contours in broken scans
-    // foundContours.forEach(c => {
-    //     const points = getContourDimensions(c, options.cornerDilation);
-    //     maskedCornersMat.drawRectangle(
-    //         points.topLeft,
-    //         points.bottomRight,
-    //         new cv.Vec(255, 255, 255),
-    //         cv.FILLED
-    //     );
-    // });
-    // afterwards, renew the contours found for more clarity
-    // foundContours = maskedCornersMat.findContours(mode, findContoursMethod);
-
-    const d = getContourDimensions(largestContour);
-
-    if (largestContour || foundContours.length === 4) {
-        // we have the right amount of contours for each corner, continue
-        // const srcPoints = getCorners(foundContours, options.cornerPadding);
-
-        const minRes = Math.min(targetResolution.height, targetResolution.width);
-
-        // get the ratio between x and y
-        const width = minRes;
-        const height = minRes;
-
-        const pad = options.boardPadding * -1;
-
-        // make the destination points, with scaling
-        const topLeft = new cv.Point(0 - pad, 0 - pad);
-        const topRight = new cv.Point(width * options.xScale + pad, 0 - pad);
-        const bottomRight = new cv.Point(
-            width * options.xScale + pad,
-            height * options.yScale + pad
-        );
-        const bottomLeft = new cv.Point(0 - pad, height * options.yScale + pad);
-
-        const dstPoints = [topLeft, topRight, bottomRight, bottomLeft];
-
-        // do rotations
-        for (let i = 0; i < options.rotations; i++) {
-            dstPoints.unshift(dstPoints.pop());
-        }
-
-        const transformationMatrixMat = cv.getPerspectiveTransform(
-            [
-                // top-left
-                d.topLeft,
-                // top-right
-                d.topRight,
-                // bottom-right
-                d.bottomRight,
-                // bottom-left
-                d.bottomLeft
-            ],
-            dstPoints
-        );
-        return {
-            transformationMatrixMat,
-            maskedCornersMat,
-            foundCorners: foundContours.length,
-            foundContours
-        };
-    } else {
-        return {
-            transformationMatrixMat: null,
-            maskedCornersMat,
-            foundCorners: foundContours.length,
-            foundContours
-        };
+    // do rotations
+    for (let i = 0; i < options.rotations; i++) {
+        dstPoints.unshift(dstPoints.pop());
     }
+
+    const transformationMatrixMat = cv.getPerspectiveTransform(srcPoints, dstPoints);
+    return {
+        transformationMatrixMat,
+        maskedCornersMat,
+        foundCorners: lines.length,
+        corners: srcPoints,
+        lines,
+        center: { x: geoCenterX, y: geoCenterY }
+    };
 };
