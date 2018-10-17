@@ -4,6 +4,8 @@ class db {
     constructor() {
         const dbName = "db";
 
+        this.cached = {};
+
         const low = require("lowdb");
         const FileSync = require("lowdb/adapters/FileSync");
 
@@ -22,6 +24,8 @@ class db {
             .get("sections")
             .set(index, { zones })
             .write();
+
+        this.cached.sections = null;
     }
 
     getSection(index) {
@@ -52,7 +56,10 @@ class db {
     }
 
     getSections() {
-        return this.lowdb.get("sections").value();
+        if(!this.cached.sections) {
+            this.cached.sections = this.lowdb.get("sections").value();
+        }
+        return this.cached.sections;
     }
 }
 
