@@ -16,7 +16,7 @@ const db = require("./db");
 let settings = db.getSettings();
 
 const captureDelay = parseInt(process.env.captureDelay || 2); // 5 is prod-recommended for now
-const failedCaptureDelay = 1000;
+const failedCaptureDelay = 100;
 const frontendResolution = { height: 480, width: 640 };
 
 // these get updated throughout the back-end runtime
@@ -74,6 +74,7 @@ let ballTrackingsPerSecond = 0;
 let cornerTrackingsPerSecond = 0;
 
 setInterval(() => {
+    console.log("timing:", generalTrackingsPerSecond);
     status.timings.general = generalTrackingsPerSecond;
     generalTrackingsPerSecond = 0;
     status.timings.error = errorTrackingsPerSecond;
@@ -319,18 +320,29 @@ io.on(clientMsg.connection, function(socket) {
     });
 });
 
-const track = () => {
-    // wCap.readAsync().then(board => {
-    cv.imreadAsync("./board.png").then(board => {
-        cycleMat("Image", mats, board);
+const useCamera = false;
+const getImageAsync = useCamera ? () => wCap.readAsync() : () => cv.imreadAsync("./board.png");
 
+let getImagePromise;
+
+const track = () => {
+    if (getImagePromise === undefined) {
+        getImagePromise = getImageAsync();
+    }
+    getImagePromise.then(board => {
+        // board = _board;
+        getImagePromise = getImageAsync();
+        
+        cycleMat("Image", mats, board);
+        
         // don't show visual aid things while not calibrating
         if (status.calibrationActive > 0 && Number(status.calibrationActive) < new Date() - 3000) {
             status.calibrationActive = 0;
         }
-
+        
         try {
             // get image transformation using corners
+            // 90-120 -> 50-60 (30 fps loss)
             const {
                 transformationMatrixMat,
                 maskedCornersMat,
@@ -346,14 +358,13 @@ const track = () => {
             cycleMat("Corners Transformation Matrix", mats, transformationMatrixMat);
             cycleMat("Corners Mask", mats, maskedCornersMat);
             status.foundCorners = foundCorners;
-
             if (mats["Corners Transformation Matrix"]) {
                 status.cornerIdentificationFailCount = 0;
                 cornerTrackingsPerSecond++;
             } else {
                 status.cornerIdentificationFailCount++;
             }
-
+                
             if (mats["Corners Transformation Matrix"]) {
                 // we have the 2D transformation matrix, make the board 2D
                 cycleMat(
@@ -368,10 +379,16 @@ const track = () => {
                 );
 
                 const sections = db.getSections();
-
+                
+                // generalTrackingsPerSecond++;
+                // setTimeout(track, captureDelay);
+                // return;
+                
+                // 40+ fps loss!
                 const ball = findBall(mats["2D Image"], null, settings.ballIdentification);
                 cycleMat("Ball Background Mask", mats, ball.backgroundMat);
                 cycleMat("Ball Color Filtered Mask", mats, ball.colorFilteredMat);
+
 
                 if (ball.circle) {
                     // ball was found
