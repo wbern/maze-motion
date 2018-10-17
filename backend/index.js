@@ -281,6 +281,7 @@ io.on(clientMsg.connection, function(socket) {
                     break;
                 case clientMsg.requestImage:
                     if (data.cameraViewMode && mats[data.cameraViewMode]) {
+                        status.calibrationActive = new Date();
                         socket.emit(
                             serverMsg.activeImage,
                             Buffer.from(cv.imencode(".png", mats[data.cameraViewMode]))
@@ -322,6 +323,11 @@ const track = () => {
     // wCap.readAsync().then(board => {
     cv.imreadAsync("./board.png").then(board => {
         cycleMat("Image", mats, board);
+
+        // don't show visual aid things while not calibrating
+        if (status.calibrationActive > 0 && Number(status.calibrationActive) < new Date() - 3000) {
+            status.calibrationActive = 0;
+        }
 
         try {
             // get image transformation using corners
@@ -384,7 +390,7 @@ const track = () => {
                     // set new active sections if there was a change
                     setActiveSections(activeSections);
 
-                    if (settings.visualAid.ballCircle) {
+                    if (status.calibrationActive && settings.visualAid.ballCircle) {
                         // around the ball
                         mats["2D Image"].drawCircle(
                             new cv.Point2(ball.circle.x, ball.circle.y),
@@ -419,7 +425,7 @@ const track = () => {
             }
 
             // visual aid to show which corners were recognized
-            if (corners && settings.visualAid.cornerRectangles) {
+            if (status.calibrationActive && corners && settings.visualAid.cornerRectangles) {
                 corners.forEach(point => {
                     mats["Image"].drawCircle(
                         new cv.Point2(point.x, point.y),
