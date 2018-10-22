@@ -2,7 +2,7 @@ const cv = require("opencv4nodejs");
 const getTransformationMatrixMatNew = require("./lib/getTransformationMatrixMatNew");
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
-const findBall = require("./lib/findBall");
+const findBlueBall = require("./lib/findBlueBall");
 
 const app = require("express")();
 const http = require("http").Server(app);
@@ -321,7 +321,7 @@ io.on(clientMsg.connection, function(socket) {
 });
 
 const useCamera = false;
-const getImageAsync = useCamera ? () => wCap.readAsync() : () => cv.imreadAsync("./board.png");
+const getImageAsync = useCamera ? () => wCap.readAsync() : () => cv.imreadAsync("./board_with_ball.png");
 
 let getImagePromise;
 
@@ -385,28 +385,28 @@ const track = () => {
                 // return;
                 
                 // 40+ fps loss!
-                const ball = findBall(mats["2D Image"], null, settings.ballIdentification);
+                const ball = findBlueBall(mats["2D Image"], null, settings.ballIdentification);
                 cycleMat("Ball Background Mask", mats, ball.backgroundMat);
                 cycleMat("Ball Color Filtered Mask", mats, ball.colorFilteredMat);
 
 
-                if (ball.circle) {
+                if (true === false && ball.circles) {
                     // ball was found
                     cycleMat("Ball Mask", mats, ball.mat);
-
+                    
                     // get active sections
                     const activeSections = Object.keys(sections).filter(sectionName =>
                         sections[sectionName].zones.some(
                             zone =>
-                                ball.circle.x >= zone.x &&
-                                ball.circle.x <= zone.x + zone.width &&
-                                (ball.circle.y >= zone.y && ball.circle.y <= zone.y + zone.height)
+                            ball.circle.x >= zone.x &&
+                            ball.circle.x <= zone.x + zone.width &&
+                            (ball.circle.y >= zone.y && ball.circle.y <= zone.y + zone.height)
                         )
                     );
-
+                    
                     // set new active sections if there was a change
                     setActiveSections(activeSections);
-
+                    
                     if (status.calibrationActive && settings.visualAid.ballCircle) {
                         // around the ball
                         mats["2D Image"].drawCircle(
