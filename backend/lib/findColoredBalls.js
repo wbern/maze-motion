@@ -70,9 +70,7 @@ module.exports = (boardImage, sections, options) => {
     const threshold2 = 0;
     const apertureSize = 3;
     const L2gradient = false;
-    // cv.imshowWait("", colorFilteredMat);
     const cannyMat = colorFilteredMat.canny(threshold1, threshold2, apertureSize, L2gradient);
-    // cv.imshowWait("", cannyMat);
 
     const mode = cv.RETR_CCOMP;
     const findContoursMethod = cv.CHAIN_APPROX_SIMPLE;
@@ -87,45 +85,11 @@ module.exports = (boardImage, sections, options) => {
     //         c.size < options.houghCircleSettings.maxRadius
     // );
 
-    // const circles = blobDetector.detect(colorFilteredMat);
-    // const circles = [
-    //     {
-    //         octave: 0,
-    //         size: 61.23310470581055,
-    //         response: 0,
-    //         classId: -1,
-    //         angle: -1,
-    //         point: { y: 436.63592529296875, x: 350.57281494140625 },
-    //         localId: -1
-    //     },
-    //     {
-    //         octave: 0,
-    //         size: 119.7121810913086,
-    //         response: 0,
-    //         classId: -1,
-    //         angle: -1,
-    //         point: { y: 412.7687683105469, x: 256.1635437011719 },
-    //         localId: -1
-    //     }
-    // ];
-
-    // let res = blobDetector.detect(colorFilteredMat);
-    // cv.drawKeyPoints(colorFilteredMat, res);
-    // debugger;
-    // cv.imshowWait("", colorFilteredMat);
-
-    // now remove the grayness from areas that are not within the sections mask
-    // backgroundMat = backgroundMat.copy(sectionsMask);
-    // colorFilteredMat = colorFilteredMat.copy(sectionsMask);
-
-    const foundBall = {
+    const foundBalls = {
         circles,
         circle: circles.sort((a, b) => b.size - a.size)[0],
-        mat: undefined,
-        matchPercentage: 0,
-        backgroundMat: null,
         colorFilteredMat
     };
 
-    return foundBall;
+    return foundBalls;
 };

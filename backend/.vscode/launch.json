@@ -24,7 +24,7 @@
             "runtimeExecutable": "node",
             "runtimeArgs": ["--inspect-brk=9229"],
             "env": {
-                "captureDelay": "5",
+                "captureDelay": "0",
                 "devicePort": "1"
             },
             "program": "${workspaceFolder}/index.js",

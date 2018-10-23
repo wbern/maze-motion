@@ -332,7 +332,6 @@ const track = () => {
         getImagePromise = getImageAsync();
     }
     getImagePromise.then(board => {
-        // board = _board;
         getImagePromise = getImageAsync();
 
         cycleMat("Image", mats, board);
@@ -344,7 +343,7 @@ const track = () => {
 
         try {
             // get image transformation using corners
-            // 90-120 -> 50-60 (30 fps loss)
+            // Cost: 30 FPS, 90-120 -> 50-60
             const {
                 transformationMatrixMat,
                 maskedCornersMat,
@@ -386,8 +385,12 @@ const track = () => {
                 // setTimeout(track, captureDelay);
                 // return;
 
-                // 40+ fps loss!
-                const ballData = findColoredBalls(mats["2D Image"], null, settings.ballIdentification);
+                // Cost: 5-10 FPS
+                const ballData = findColoredBalls(
+                    mats["2D Image"],
+                    null,
+                    settings.ballIdentification
+                );
                 // cycleMat("Ball Background Mask", mats, ball.backgroundMat);
                 cycleMat("Ball Color Filtered Mask", mats, ballData.colorFilteredMat);
 
@@ -415,28 +418,12 @@ const track = () => {
                         // around the ball
                         ballData.circles.forEach(circle => {
                             mats["2D Image"].drawEllipse(circle, new cv.Vec3(255, 0, 0), 2);
-                            //     new cv.Point2(circle.center.x, circle.center.y),
-                            //     circle.center. * 1,
-                            //     new cv.Vec3(255, 0, 0),
-                            //     2
-                            // );
-
-                            // center of ball
                             mats["2D Image"].drawCircle(
                                 new cv.Point2(circle.center.x, circle.center.y),
                                 1,
                                 new cv.Vec3(255, 255, 0),
                                 2
                             );
-
-                            // percentage match
-                            // mats["2D Image"].putText(
-                            //     ball.roundedMatchPercentage * 100 + "%",
-                            //     new cv.Point2(ball.circle.x, ball.circle.y + ball.circle.z + 12),
-                            //     cv.FONT_HERSHEY_PLAIN,
-                            //     1,
-                            //     new cv.Vec3(255, 0, 0)
-                            // );
                         });
                     }
 
@@ -477,7 +464,13 @@ const track = () => {
 
             generalTrackingsPerSecond++;
             status.errorMessage = "";
-            setTimeout(track, captureDelay);
+            if (captureDelay === 0) {
+                // do it immediately after the promise is fulfilled
+                getImagePromise.then(track);
+                // setTimeout(track, 0);
+            } else {
+                setTimeout(track, captureDelay);
+            }
         } catch (e) {
             errorTrackingsPerSecond++;
             status.errorMessage = e;
