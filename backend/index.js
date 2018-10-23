@@ -2,7 +2,7 @@ const cv = require("opencv4nodejs");
 const getTransformationMatrixMatNew = require("./lib/getTransformationMatrixMatNew");
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
-const findBlueBall = require("./lib/findBlueBall");
+const findColoredBalls = require("./lib/findColoredBalls");
 
 const app = require("express")();
 const http = require("http").Server(app);
@@ -321,7 +321,9 @@ io.on(clientMsg.connection, function(socket) {
 });
 
 const useCamera = false;
-const getImageAsync = useCamera ? () => wCap.readAsync() : () => cv.imreadAsync("./board_with_ball.png");
+const getImageAsync = useCamera
+    ? () => wCap.readAsync()
+    : () => cv.imreadAsync("./board_with_ball.png");
 
 let getImagePromise;
 
@@ -332,14 +334,14 @@ const track = () => {
     getImagePromise.then(board => {
         // board = _board;
         getImagePromise = getImageAsync();
-        
+
         cycleMat("Image", mats, board);
-        
+
         // don't show visual aid things while not calibrating
         if (status.calibrationActive > 0 && Number(status.calibrationActive) < new Date() - 3000) {
             status.calibrationActive = 0;
         }
-        
+
         try {
             // get image transformation using corners
             // 90-120 -> 50-60 (30 fps loss)
@@ -364,7 +366,7 @@ const track = () => {
             } else {
                 status.cornerIdentificationFailCount++;
             }
-                
+
             if (mats["Corners Transformation Matrix"]) {
                 // we have the 2D transformation matrix, make the board 2D
                 cycleMat(
@@ -379,59 +381,63 @@ const track = () => {
                 );
 
                 const sections = db.getSections();
-                
+
                 // generalTrackingsPerSecond++;
                 // setTimeout(track, captureDelay);
                 // return;
-                
+
                 // 40+ fps loss!
-                const ball = findBlueBall(mats["2D Image"], null, settings.ballIdentification);
-                cycleMat("Ball Background Mask", mats, ball.backgroundMat);
-                cycleMat("Ball Color Filtered Mask", mats, ball.colorFilteredMat);
+                const ballData = findColoredBalls(mats["2D Image"], null, settings.ballIdentification);
+                // cycleMat("Ball Background Mask", mats, ball.backgroundMat);
+                cycleMat("Ball Color Filtered Mask", mats, ballData.colorFilteredMat);
 
-
-                if (true === false && ball.circles) {
+                if (ballData.circles && ballData.circles.length > 0) {
                     // ball was found
-                    cycleMat("Ball Mask", mats, ball.mat);
-                    
+                    cycleMat("Ball Mask", mats, ballData.mat);
+
                     // get active sections
                     const activeSections = Object.keys(sections).filter(sectionName =>
-                        sections[sectionName].zones.some(
-                            zone =>
-                            ball.circle.x >= zone.x &&
-                            ball.circle.x <= zone.x + zone.width &&
-                            (ball.circle.y >= zone.y && ball.circle.y <= zone.y + zone.height)
+                        ballData.circles.some(circle =>
+                            sections[sectionName].zones.some(
+                                zone =>
+                                    circle.center.x >= zone.x &&
+                                    circle.center.x <= zone.x + zone.width &&
+                                    (circle.center.y >= zone.y &&
+                                        circle.center.y <= zone.y + zone.height)
+                            )
                         )
                     );
-                    
+
                     // set new active sections if there was a change
                     setActiveSections(activeSections);
-                    
+
                     if (status.calibrationActive && settings.visualAid.ballCircle) {
                         // around the ball
-                        mats["2D Image"].drawCircle(
-                            new cv.Point2(ball.circle.x, ball.circle.y),
-                            ball.circle.z * 1,
-                            new cv.Vec3(255, 0, 0),
-                            2
-                        );
+                        ballData.circles.forEach(circle => {
+                            mats["2D Image"].drawEllipse(circle, new cv.Vec3(255, 0, 0), 2);
+                            //     new cv.Point2(circle.center.x, circle.center.y),
+                            //     circle.center. * 1,
+                            //     new cv.Vec3(255, 0, 0),
+                            //     2
+                            // );
 
-                        // center of ball
-                        mats["2D Image"].drawCircle(
-                            new cv.Point2(ball.circle.x, ball.circle.y),
-                            1,
-                            new cv.Vec3(255, 255, 0),
-                            2
-                        );
+                            // center of ball
+                            mats["2D Image"].drawCircle(
+                                new cv.Point2(circle.center.x, circle.center.y),
+                                1,
+                                new cv.Vec3(255, 255, 0),
+                                2
+                            );
 
-                        // percentage match
-                        mats["2D Image"].putText(
-                            ball.roundedMatchPercentage * 100 + "%",
-                            new cv.Point2(ball.circle.x, ball.circle.y + ball.circle.z + 12),
-                            cv.FONT_HERSHEY_PLAIN,
-                            1,
-                            new cv.Vec3(255, 0, 0)
-                        );
+                            // percentage match
+                            // mats["2D Image"].putText(
+                            //     ball.roundedMatchPercentage * 100 + "%",
+                            //     new cv.Point2(ball.circle.x, ball.circle.y + ball.circle.z + 12),
+                            //     cv.FONT_HERSHEY_PLAIN,
+                            //     1,
+                            //     new cv.Vec3(255, 0, 0)
+                            // );
+                        });
                     }
 
                     ballTrackingsPerSecond++;

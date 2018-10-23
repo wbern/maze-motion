@@ -77,29 +77,37 @@ module.exports = (boardImage, sections, options) => {
     const mode = cv.RETR_CCOMP;
     const findContoursMethod = cv.CHAIN_APPROX_SIMPLE;
     const foundContours = cannyMat.findContours(mode, findContoursMethod);
-    cannyMat.drawContours(foundContours, new cv.Vec3(255,255,255));
+    cannyMat.drawContours(foundContours, new cv.Vec3(255, 255, 255));
+
+    let circles = foundContours.map(c => c.fitEllipse());
+
+    // circles = circles.filter(
+    //     c =>
+    //         c.size > options.houghCircleSettings.minRadius &&
+    //         c.size < options.houghCircleSettings.maxRadius
+    // );
 
     // const circles = blobDetector.detect(colorFilteredMat);
-    const circles = [
-        {
-            octave: 0,
-            size: 61.23310470581055,
-            response: 0,
-            classId: -1,
-            angle: -1,
-            point: { y: 436.63592529296875, x: 350.57281494140625 },
-            localId: -1
-        },
-        {
-            octave: 0,
-            size: 119.7121810913086,
-            response: 0,
-            classId: -1,
-            angle: -1,
-            point: { y: 412.7687683105469, x: 256.1635437011719 },
-            localId: -1
-        }
-    ];
+    // const circles = [
+    //     {
+    //         octave: 0,
+    //         size: 61.23310470581055,
+    //         response: 0,
+    //         classId: -1,
+    //         angle: -1,
+    //         point: { y: 436.63592529296875, x: 350.57281494140625 },
+    //         localId: -1
+    //     },
+    //     {
+    //         octave: 0,
+    //         size: 119.7121810913086,
+    //         response: 0,
+    //         classId: -1,
+    //         angle: -1,
+    //         point: { y: 412.7687683105469, x: 256.1635437011719 },
+    //         localId: -1
+    //     }
+    // ];
 
     // let res = blobDetector.detect(colorFilteredMat);
     // cv.drawKeyPoints(colorFilteredMat, res);
