@@ -14,14 +14,15 @@ module.exports = (imageMat, options, targetResolution) => {
     });
 
     // get the contours of the corners
-    maskedCornersMat = maskedCornersMat.cvtColor(cv.COLOR_BGR2GRAY);
+    maskedCornersMat = maskedCornersMat
+        .cvtColor(cv.COLOR_BGR2GRAY)
+        .threshold(0, 255, cv.THRESH_BINARY);
 
     // // maskedCornersMat = maskedCornersMat.gaussianBlur(
     // //     new cv.Size(1, 1),
     // //     5,
     // //     5
     // // );
-    maskedCornersMat = maskedCornersMat.threshold(0, 255, cv.THRESH_BINARY);
     if (options.erodePixels && options.erodePixels > 0) {
         maskedCornersMat = maskedCornersMat.erode(
             new cv.Mat(Array(options.erodePixels).fill([255, 255, 255]), cv.CV_8U)
@@ -136,7 +137,7 @@ module.exports = (imageMat, options, targetResolution) => {
     const angles = [];
     intersections.forEach(intersection => {
         const angle =
-            Math.atan2(intersection.y - geoCenterY, intersection.x - geoCenterX) * 180 / Math.PI +
+            (Math.atan2(intersection.y - geoCenterY, intersection.x - geoCenterX) * 180) / Math.PI +
             180;
         angles[Math.floor(angle)] = intersection;
     });
