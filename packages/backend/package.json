@@ -19,7 +19,7 @@
     "set-OPENCV_BIN_DIR": "set OPENCV_BIN_DIR='./opencv/build/bin'",
     "nix-set-envs": "export OPENCV4NODEJS_DISABLE_AUTOBUILD='1'; export OPENCV_INCLUDE_DIR='./opencv/build/include'; export OPENCV_LIB_DIR='./opencv/build/x64/vc15/lib'; export OPENCV_BIN_DIR='./opencv/build/bin'",
     "start": "node --inspect=9222 index.js",
-    "start:prod": "cross-env NODE_ENV=production devicePort=1 node index.js",
+    "start:prod": "cross-env NODE_ENV=production devicePort=0 node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
