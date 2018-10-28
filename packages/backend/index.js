@@ -327,6 +327,10 @@ const getImageAsync = useCamera
 
 let getImagePromise;
 
+let transformationData;
+let skips = 0;
+let maxSkips = 10;
+
 const track = () => {
     if (getImagePromise === undefined) {
         getImagePromise = getImageAsync();
@@ -335,15 +339,27 @@ const track = () => {
         getImagePromise = getImageAsync();
 
         cycleMat("Image", mats, board);
-
+        
         // don't show visual aid things while not calibrating
         if (status.calibrationActive > 0 && Number(status.calibrationActive) < new Date() - 3000) {
             status.calibrationActive = 0;
         }
-
+        
         try {
             // get image transformation using corners
             // Cost: 30 FPS, 90-120 -> 50-60
+            skips++;
+
+            if(!transformationData || skips >= maxSkips) {
+                transformationData = getTransformationMatrixMatNew(
+                    mats["Image"],
+                    settings.cornerIdentification,
+                    settings.resolution
+                );
+
+                skips = 0;
+            }
+
             const {
                 transformationMatrixMat,
                 maskedCornersMat,
@@ -351,13 +367,12 @@ const track = () => {
                 corners,
                 lines,
                 center
-            } = getTransformationMatrixMatNew(
-                mats["Image"],
-                settings.cornerIdentification,
-                settings.resolution
-            );
-            cycleMat("Corners Transformation Matrix", mats, transformationMatrixMat);
-            cycleMat("Corners Mask", mats, maskedCornersMat);
+            } = transformationData;
+
+            if(skips === 0) {
+                cycleMat("Corners Transformation Matrix", mats, transformationMatrixMat);
+                cycleMat("Corners Mask", mats, maskedCornersMat);
+            }
             status.foundCorners = foundCorners;
             if (mats["Corners Transformation Matrix"]) {
                 status.cornerIdentificationFailCount = 0;
@@ -381,9 +396,6 @@ const track = () => {
 
                 const sections = db.getSections();
 
-                // generalTrackingsPerSecond++;
-                // setTimeout(track, captureDelay);
-                // return;
 
                 // Cost: 5-10 FPS
                 const ballData = findColoredBalls(
