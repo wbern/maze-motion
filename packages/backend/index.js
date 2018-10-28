@@ -320,7 +320,7 @@ io.on(clientMsg.connection, function(socket) {
     });
 });
 
-const useCamera = true;
+const useCamera = false;
 const getImageAsync = useCamera
     ? () => wCap.readAsync()
     : () => cv.imreadAsync("./board_with_ball.png");
