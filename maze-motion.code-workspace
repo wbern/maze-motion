@@ -1,13 +1,13 @@
 {
 	"folders": [
 		{
-			"path": "backend"
+			"path": "packages/backend"
 		},
 		{
-			"path": "backend-game"
+			"path": "packages/backend-game"
 		},
 		{
-			"path": "frontend"
+			"path": "packages/frontend"
 		}
 	],
 	"settings": {
