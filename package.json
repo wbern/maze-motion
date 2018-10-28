@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "lerna run start",
-    "start:prod": "lerna run start:prod"
+    "start": "lerna run start --parallel",
+    "start:prod": "lerna run start:prod --parallel"
   },
   "repository": {
     "type": "git",
