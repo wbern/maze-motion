@@ -351,13 +351,13 @@ const track = () => {
             skips++;
 
             if(!transformationData || skips >= maxSkips) {
+                skips = 0;
+                
                 transformationData = getTransformationMatrixMatNew(
                     mats["Image"],
                     settings.cornerIdentification,
                     settings.resolution
                 );
-
-                skips = 0;
             }
 
             const {
@@ -369,10 +369,12 @@ const track = () => {
                 center
             } = transformationData;
 
-            if(skips === 0) {
+            // we received a new matrix
+            if(mats["Corners Transformation Matrix"] !== transformationMatrixMat) {
                 cycleMat("Corners Transformation Matrix", mats, transformationMatrixMat);
                 cycleMat("Corners Mask", mats, maskedCornersMat);
             }
+
             status.foundCorners = foundCorners;
             if (mats["Corners Transformation Matrix"]) {
                 status.cornerIdentificationFailCount = 0;
