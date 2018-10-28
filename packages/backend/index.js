@@ -375,7 +375,7 @@ const track = () => {
                         mats["Corners Transformation Matrix"],
                         new cv.Size(settings.resolution.width, settings.resolution.height),
                         // http://tanbakuchi.com/posts/comparison-of-openv-interpolation-algorithms/#Upsampling-comparison
-                        cv.INTER_CUBIC
+                        cv.INTER_NEAREST
                     )
                 );
 
