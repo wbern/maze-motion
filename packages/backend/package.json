@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "preinstall": "npm run set-OPENCV4NODEJS_DISABLE_AUTOBUILD && npm run set-OPENCV_INCLUDE_DIR && npm run set-OPENCV_LIB_DIR && npm run set-OPENCV_BIN_DIR",
+    "preinstallx": "npm run set-OPENCV4NODEJS_DISABLE_AUTOBUILD && npm run set-OPENCV_INCLUDE_DIR && npm run set-OPENCV_LIB_DIR && npm run set-OPENCV_BIN_DIR",
     "save-OPENCV4NODEJS_DISABLE_AUTOBUILD": "set OPENCV4NODEJS_DISABLE_AUTOBUILD_SAVE=%OPENCV4NODEJS_DISABLE_AUTOBUILD%",
     "save-OPENCV_INCLUDE_DIR": "set OPENCV_INCLUDE_DIR_SAVE=%OPENCV_INCLUDE_DIR%",
     "save-OPENCV_LIB_DIR": "set OPENCV_LIB_DIR_SAVE=%OPENCV_LIB_DIR%",
@@ -18,8 +18,8 @@
     "set-OPENCV_LIB_DIR": "set OPENCV_LIB_DIR='./opencv/build/x64/vc15/lib'",
     "set-OPENCV_BIN_DIR": "set OPENCV_BIN_DIR='./opencv/build/bin'",
     "nix-set-envs": "export OPENCV4NODEJS_DISABLE_AUTOBUILD='1'; export OPENCV_INCLUDE_DIR='./opencv/build/include'; export OPENCV_LIB_DIR='./opencv/build/x64/vc15/lib'; export OPENCV_BIN_DIR='./opencv/build/bin'",
-    "start": "node index.js",
-    "start-prod": "cross-env NODE_ENV=production devicePort=1 node index.js",
+    "start": "node --inspect=9222 index.js",
+    "start:prod": "cross-env NODE_ENV=production devicePort=1 node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
