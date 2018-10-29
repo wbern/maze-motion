@@ -18,6 +18,11 @@ module.exports = (imageMat, options, targetResolution) => {
         .cvtColor(cv.COLOR_BGR2GRAY)
         .threshold(0, 255, cv.THRESH_BINARY);
 
+    // this is a performance hog
+    // if(maskedCornersMat.countNonZero() === 0) {
+    //     throw new Error("Could not detect any sides of the board based on the color range specified.")
+    // }
+
     // // maskedCornersMat = maskedCornersMat.gaussianBlur(
     // //     new cv.Size(1, 1),
     // //     5,
@@ -49,6 +54,11 @@ module.exports = (imageMat, options, targetResolution) => {
             x1: line.y,
             x2: line.w
         }));
+
+    if (lines.length < 4) {
+        // no lines found or just a few, assume something's wrong.
+        throw new Error("Could not identify enough lines of the board, got " + lines.length + ".");
+    }
 
     // map all the lines on separate x and y axis
     const linePoints = lines.reduce(
@@ -171,6 +181,22 @@ module.exports = (imageMat, options, targetResolution) => {
         .slice(0, fourSharpestAngles[0])
         .concat(angles.slice(fourSharpestAngles[3] + 1))
         .filter(a => a !== undefined);
+
+    if (
+        topRightPoints.length === 0 ||
+        bottomRightPoints.length === 0 ||
+        bottomLeftPoints.length === 0 ||
+        topLeftPoints.length === 0
+    ) {
+        // failed to identify one of the corners
+        throw new Error(
+            "Failed to identify all 4 corners, only got " +
+                ((topRightPoints.length > 0) +
+                    (bottomRightPoints.length > 0) +
+                    (bottomLeftPoints.length > 0) +
+                    (topLeftPoints.length > 0))
+        );
+    }
 
     const avgPoint = arr =>
         arr.reduce((prev, current, index) => {

@@ -14,9 +14,7 @@ class db {
         this.lowdb = low(adapter);
         global.db = this.lowdb;
 
-        this.lowdb
-            .defaults(defaults)
-            .write();
+        this.lowdb.defaults(defaults).write();
     }
 
     writeSection(index, zones) {
@@ -25,6 +23,7 @@ class db {
             .set(index, { zones })
             .write();
 
+        this.cached.pigeonHoledSection = null;
         this.cached.sections = null;
     }
 
@@ -36,11 +35,11 @@ class db {
     }
 
     getSettings() {
-        return this.lowdb.get("settings").value();        
+        return this.lowdb.get("settings").value();
     }
 
     writeSettings(data) {
-        return this.lowdb.set("settings", data).write();       
+        return this.lowdb.set("settings", data).write();
     }
 
     // getCornerHSVMasks() {
@@ -56,10 +55,33 @@ class db {
     }
 
     getSections() {
-        if(!this.cached.sections) {
+        if (!this.cached.sections) {
             this.cached.sections = this.lowdb.get("sections").value();
         }
         return this.cached.sections;
+    }
+
+    getPigeonHoledSections(maxWidth, maxHeight) {
+        if (!this.cached.pigeonHoledSection) {
+            const sections = this.getSections();
+            const result = new Array(maxWidth + 1)
+                .fill(0)
+                .map(() => new Array(maxHeight + 1).fill(0).map(() => ({})));
+
+            Object.keys(sections).forEach(sectionNumber => {
+                sections[sectionNumber].zones.forEach(zone => {
+                    for (var col = zone.x; col < zone.x + zone.width; col++) {
+                        for (var row = zone.y; row < zone.y + zone.height; row++) {
+                            // section X is active in col Y and row Z
+                            result[col][row][sectionNumber] = true;
+                        }
+                    }
+                });
+            });
+
+            this.cached.pigeonHoledSection = result;
+        }
+        return this.cached.pigeonHoledSection;
     }
 }
 

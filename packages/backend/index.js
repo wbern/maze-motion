@@ -208,112 +208,107 @@ io.on(clientMsg.connection, function(socket) {
             msg,
             function(data) {
                 switch (msg) {
-                case clientMsg.disconnect:
-                    socket.removeAllListeners();
-                    socket.disconnect();
-                    // Object.keys(clientMsg).forEach(key => {
-                    //     const msg = clientMsg[key];
-                    //     socket.off(msg);
-                    // })
-                    break;
-                case clientMsg.requestSettings:
-                    socket.emit(serverMsg.settings, db.getSettings());
-                    break;
-                case clientMsg.saveSettings:
-                    try {
-                        // parse new settings
-                        const newSettings = data;
-                        // write new settings to db
-                        db.writeSettings(newSettings);
-                        // use the new settings
-                        settings = newSettings;
-                        applySettings();
-                    } catch (e) {
-                        status.errorMessage = "Invalid settings were not saved.";
-                    }
-
-                    // return currently used settings in runtime
-                    socket.emit(serverMsg.settings, settings);
-
-                    break;
-                case clientMsg.saveSection:
-                    data.zones = adjustZonesResolution(
-                        data.zones,
-                        data.resolution,
-                        settings.resolution
-                    );
-                    data.zones = simplifyZones(
-                        data.zones,
-                        data.resolution,
-                        settings.resolution,
-                        frontendResolution
-                    );
-                    db.writeSection(data.index, data.zones);
-                    socket.emit(serverMsg.sections, db.getSections());
-                    break;
-                    // eslint-disable-next-line no-case-declarations
-                case clientMsg.requestStatus:
-                    const evaluatedStatus = {};
-                    Object.keys(status).forEach(key => {
-                        if (typeof status[key] === "function") {
-                            evaluatedStatus[key] = status[key]();
-                        } else {
-                            evaluatedStatus[key] = status[key];
+                    case clientMsg.disconnect:
+                        socket.removeAllListeners();
+                        socket.disconnect();
+                        // Object.keys(clientMsg).forEach(key => {
+                        //     const msg = clientMsg[key];
+                        //     socket.off(msg);
+                        // })
+                        break;
+                    case clientMsg.requestSettings:
+                        socket.emit(serverMsg.settings, db.getSettings());
+                        break;
+                    case clientMsg.saveSettings:
+                        try {
+                            // parse new settings
+                            const newSettings = data;
+                            // write new settings to db
+                            db.writeSettings(newSettings);
+                            // use the new settings
+                            settings = newSettings;
+                            applySettings();
+                        } catch (e) {
+                            status.errorMessage = "Invalid settings were not saved.";
                         }
-                    });
 
-                    socket.emit(serverMsg.status, evaluatedStatus);
-                    break;
+                        // return currently used settings in runtime
+                        socket.emit(serverMsg.settings, settings);
+
+                        break;
+                    case clientMsg.saveSection:
+                        data.zones = adjustZonesResolution(
+                            data.zones,
+                            data.resolution,
+                            settings.resolution
+                        );
+                        data.zones = simplifyZones(data.zones);
+                        db.writeSection(data.index, data.zones);
+                        socket.emit(serverMsg.sections, db.getSections());
+                        break;
                     // eslint-disable-next-line no-case-declarations
-                case clientMsg.loadSection:
-                    const index = data;
-                    const section = db.getSection(index);
-                    if (section) {
-                        const zones = adjustZonesResolution(
-                            section.zones,
-                            settings.resolution,
-                            frontendResolution
-                        );
-                        socket.emit(serverMsg.loadedSection, { index, zones });
-                    }
-                    break;
-                case clientMsg.requestSections:
-                    socket.emit(serverMsg.sections, db.getSections());
-                    break;
-                case clientMsg.requestImage:
-                    if (data.cameraViewMode && mats[data.cameraViewMode]) {
-                        status.calibrationActive = new Date();
-                        socket.emit(
-                            serverMsg.activeImage,
-                            Buffer.from(cv.imencode(".png", mats[data.cameraViewMode]))
-                        );
-                    }
-                    break;
-                case clientMsg.requestActiveSections:
-                    // send back active sections with respective zones
-                    socket.emit(
-                        serverMsg.activeSections,
-                        status.activeSections.map(activeSectionIndex => {
-                            const section = db.getSection(activeSectionIndex);
+                    case clientMsg.requestStatus:
+                        const evaluatedStatus = {};
+                        Object.keys(status).forEach(key => {
+                            if (typeof status[key] === "function") {
+                                evaluatedStatus[key] = status[key]();
+                            } else {
+                                evaluatedStatus[key] = status[key];
+                            }
+                        });
+
+                        socket.emit(serverMsg.status, evaluatedStatus);
+                        break;
+                    // eslint-disable-next-line no-case-declarations
+                    case clientMsg.loadSection:
+                        const index = data;
+                        const section = db.getSection(index);
+                        if (section) {
                             const zones = adjustZonesResolution(
                                 section.zones,
                                 settings.resolution,
                                 frontendResolution
                             );
+                            socket.emit(serverMsg.loadedSection, { index, zones });
+                        }
+                        break;
+                    case clientMsg.requestSections:
+                        socket.emit(serverMsg.sections, db.getSections());
+                        break;
+                    case clientMsg.requestImage:
+                        if (data.cameraViewMode && mats[data.cameraViewMode]) {
+                            status.calibrationActive = new Date();
+                            socket.emit(
+                                serverMsg.activeImage,
+                                Buffer.from(cv.imencode(".png", mats[data.cameraViewMode]))
+                            );
+                        }
+                        break;
+                    case clientMsg.requestActiveSections:
+                        // send back active sections with respective zones
+                        socket.emit(
+                            serverMsg.activeSections,
+                            status.activeSections.map(activeSectionIndex => {
+                                const section = db.getSection(activeSectionIndex);
+                                const zones = adjustZonesResolution(
+                                    section.zones,
+                                    settings.resolution,
+                                    frontendResolution
+                                );
 
-                            return { index: activeSectionIndex, zones };
-                        })
-                    );
-                    break;
-                case clientMsg.requestActiveSectionsWithoutZoneData:
-                    socket.emit(serverMsg.activeSectionsWithoutZoneData, status.activeSections);
-                    break;
-                case clientMsg.requestActiveSectionsNormalizedWithoutZoneData:
-                    socket.emit(
-                        serverMsg.activeSectionsNormalizedWithoutZoneData,
-                        status.normalizedActiveSections
-                    );
-                    break;
+                                return { index: activeSectionIndex, zones };
+                            })
+                        );
+                        break;
+                    case clientMsg.requestActiveSectionsWithoutZoneData:
+                        socket.emit(serverMsg.activeSectionsWithoutZoneData, status.activeSections);
+                        break;
+                    case clientMsg.requestActiveSectionsNormalizedWithoutZoneData:
+                        socket.emit(
+                            serverMsg.activeSectionsNormalizedWithoutZoneData,
+                            status.normalizedActiveSections
+                        );
+                        break;
                 }
             }.bind(this)
         );
@@ -329,7 +324,7 @@ let getImagePromise;
 
 let transformationData;
 let skips = 0;
-let maxSkips = 10;
+const maxSkips = 10;
 
 const track = () => {
     if (getImagePromise === undefined) {
@@ -339,25 +334,32 @@ const track = () => {
         getImagePromise = getImageAsync();
 
         cycleMat("Image", mats, board);
-        
+
         // don't show visual aid things while not calibrating
         if (status.calibrationActive > 0 && Number(status.calibrationActive) < new Date() - 3000) {
             status.calibrationActive = 0;
         }
-        
+
         try {
             // get image transformation using corners
             // Cost: 30 FPS, 90-120 -> 50-60
             skips++;
 
-            if(!transformationData || skips >= maxSkips) {
-                skips = 0;
-                
-                transformationData = getTransformationMatrixMatNew(
-                    mats["Image"],
-                    settings.cornerIdentification,
-                    settings.resolution
-                );
+            if (!transformationData || skips >= maxSkips) {
+                try {
+                    transformationData = getTransformationMatrixMatNew(
+                        mats["Image"],
+                        settings.cornerIdentification,
+                        settings.resolution
+                    );
+                    skips = 0;
+                    status.cornerIdentificationFailCount = 0;
+                    cornerTrackingsPerSecond++;
+                } catch (e) {
+                    // failed to get corners
+                    status.cornerIdentificationFailCount++;
+                    throw e;
+                }
             }
 
             const {
@@ -370,18 +372,12 @@ const track = () => {
             } = transformationData;
 
             // we received a new matrix
-            if(mats["Corners Transformation Matrix"] !== transformationMatrixMat) {
+            if (mats["Corners Transformation Matrix"] !== transformationMatrixMat) {
                 cycleMat("Corners Transformation Matrix", mats, transformationMatrixMat);
                 cycleMat("Corners Mask", mats, maskedCornersMat);
             }
 
             status.foundCorners = foundCorners;
-            if (mats["Corners Transformation Matrix"]) {
-                status.cornerIdentificationFailCount = 0;
-                cornerTrackingsPerSecond++;
-            } else {
-                status.cornerIdentificationFailCount++;
-            }
 
             if (mats["Corners Transformation Matrix"]) {
                 // we have the 2D transformation matrix, make the board 2D
@@ -396,8 +392,10 @@ const track = () => {
                     )
                 );
 
-                const sections = db.getSections();
-
+                const pigeonHoledSections = db.getPigeonHoledSections(
+                    frontendResolution.width,
+                    frontendResolution.height
+                );
 
                 // Cost: 5-10 FPS
                 const ballData = findColoredBalls(
@@ -413,16 +411,15 @@ const track = () => {
                     cycleMat("Ball Mask", mats, ballData.mat);
 
                     // get active sections
-                    const activeSections = Object.keys(sections).filter(sectionName =>
-                        ballData.circles.some(circle =>
-                            sections[sectionName].zones.some(
-                                zone =>
-                                    circle.center.x >= zone.x &&
-                                    circle.center.x <= zone.x + zone.width &&
-                                    (circle.center.y >= zone.y &&
-                                        circle.center.y <= zone.y + zone.height)
-                            )
-                        )
+                    const activeSections = Object.keys(
+                        ballData.circles.reduce((collection, circle) => {
+                            return {
+                                ...collection,
+                                ...pigeonHoledSections[parseInt(circle.center.x)][
+                                    parseInt(circle.center.y)
+                                ]
+                            };
+                        }, {})
                     );
 
                     // set new active sections if there was a change
