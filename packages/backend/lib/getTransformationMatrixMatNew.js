@@ -17,8 +17,9 @@ module.exports = (imageMat, options, targetResolution) => {
         houghLinesMinLineLength: 80,
         houghLinesMaxLineGap: 150,
 
+        approxPolyDP: true,
         closed: false,
-        epsilonPercentage: 0.005,
+        epsilonPercentage: 0.0005,
 
         ...options
     };
@@ -62,6 +63,7 @@ module.exports = (imageMat, options, targetResolution) => {
     }
 
     const contoursBySize = contours.sort((left, right) => right.area - left.area);
+    const contour = contoursBySize[0];
 
     // draw the mat completely black, only draw outer contours
     maskedCornersMat.drawRectangle(
@@ -71,13 +73,31 @@ module.exports = (imageMat, options, targetResolution) => {
         cv.FILLED
     );
 
-    // draw the contours
-    maskedCornersMat.drawContours([contoursBySize[0]], new cv.Vec3(255, 255, 0));
+    let contourPoints;
+    if (options.approxPolyDP) {
+        contourPoints = contoursBySize[0].approxPolyDP(
+            options.epsilonPercentage * contoursBySize[0].arcLength(options.closed),
+            options.closed
+        );
+    } else {
+        contourPoints = contour.getPoints();
+    }
 
-    // let approxPoints = contoursBySize[0].approxPolyDP(
-    //     options.epsilonPercentage * contoursBySize[0].arcLength(options.closed),
-    //     options.closed
-    // );
+    const brAndtl = contourPoints.map(p => p).sort((left, right) => right.x + right.y - (left.x + left.y));
+    const trAndbl = contourPoints.map(p => p).sort((left, right) => right.x - right.y - (left.x - left.y));
+    const tl = brAndtl[0];
+    const br = brAndtl[brAndtl.length - 1];
+    const tr = trAndbl[0];
+    const bl = trAndbl[trAndbl.length - 1];
+
+    // draw br + tl
+    maskedCornersMat.drawCircle(tl, 5, new cv.Vec3(255, 255, 255), -1);
+    maskedCornersMat.drawCircle(br, 5, new cv.Vec3(255, 255, 255), -1);
+    maskedCornersMat.drawCircle(tr, 5, new cv.Vec3(255, 255, 255), -1);
+    maskedCornersMat.drawCircle(bl, 5, new cv.Vec3(255, 255, 255), -1);
+
+    // draw the contours
+    maskedCornersMat.drawContours([contour], new cv.Vec3(255, 255, 0));
 
     // approxPoints.forEach((ap, i) => {
     //     maskedCornersMat.drawCircle(ap, 4, new cv.Vec3(255,255,255), -1);
