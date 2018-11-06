@@ -345,6 +345,7 @@ const track = () => {
 
         // don't show visual aid things while not calibrating
         if (status.calibrationActive > 0 && Number(status.calibrationActive) < new Date() - 3000) {
+            console.log("calibration mode off");
             status.calibrationActive = 0;
         }
 
@@ -358,7 +359,8 @@ const track = () => {
                     transformationData = getTransformationMatrixMatNew(
                         mats["Image"],
                         settings.cornerIdentification,
-                        settings.resolution
+                        settings.resolution,
+                        status.calibrationActive
                     );
                     skips = 0;
                     status.cornerIdentificationFailCount = 0;
@@ -456,7 +458,7 @@ const track = () => {
             // visual aid to show which corners were recognized
             if (status.calibrationActive && corners && settings.visualAid.cornerRectangles) {
                 visualAid.drawBoardCorners(mats["Image"], corners);
-                visualAid.drawBoardCenter(mats["Image"], center);
+                // visualAid.drawBoardCenter(mats["Image"], center);
                 visualAid.drawBoardLines(mats["Image"], lines);
             }
 

@@ -1,25 +1,26 @@
 const cv = require("opencv4nodejs");
 const math = require("mathjs");
 
-module.exports = (imageMat, options, targetResolution) => {
+module.exports = (imageMat, options, targetResolution, drawVisuals) => {
     const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
     let maskedCornersMat;
 
     options = {
-        cannyThreshold1: 50,
-        cannyThreshold2: 50,
-        cannyApertureSize: 7,
-        cannyL2gradient: false,
+        // these get ignored as soon as the db has set them
+        // cannyThreshold1: 50,
+        // cannyThreshold2: 50,
+        // cannyApertureSize: 7,
+        // cannyL2gradient: false,
 
-        houghLinesRho: 1,
-        houghLinesTheta: Math.PI / 180,
-        houghLinesThreshold: 25,
-        houghLinesMinLineLength: 80,
-        houghLinesMaxLineGap: 150,
+        // houghLinesRho: 1,
+        // houghLinesTheta: Math.PI / 180,
+        // houghLinesThreshold: 25,
+        // houghLinesMinLineLength: 200,
+        // houghLinesMaxLineGap: 1000,
 
-        approxPolyDP: true,
-        closed: false,
-        epsilonPercentage: 0.0005,
+        // approxPolyDP: true,
+        // closed: false,
+        // epsilonPercentage: 0.0005,
 
         ...options
     };
@@ -63,7 +64,7 @@ module.exports = (imageMat, options, targetResolution) => {
     }
 
     const contoursBySize = contours.sort((left, right) => right.area - left.area);
-    const contour = contoursBySize[0];
+    let contour = contoursBySize[0];
 
     // draw the mat completely black, only draw outer contours
     maskedCornersMat.drawRectangle(
@@ -73,39 +74,16 @@ module.exports = (imageMat, options, targetResolution) => {
         cv.FILLED
     );
 
-    let contourPoints;
+    // approxPolyDP helps us to smoothen the lines
     if (options.approxPolyDP) {
-        contourPoints = contoursBySize[0].approxPolyDP(
+        contour = contoursBySize[0].approxPolyDP(
             options.epsilonPercentage * contoursBySize[0].arcLength(options.closed),
             options.closed
         );
+        maskedCornersMat.drawPolylines([contour], options.closed, new cv.Vec3(255, 255, 0), 1);
     } else {
-        contourPoints = contour.getPoints();
+        maskedCornersMat.drawContours([contour], new cv.Vec3(255, 255, 0));
     }
-
-    const brAndtl = contourPoints.map(p => p).sort((left, right) => right.x + right.y - (left.x + left.y));
-    const trAndbl = contourPoints.map(p => p).sort((left, right) => right.x - right.y - (left.x - left.y));
-    const tl = brAndtl[0];
-    const br = brAndtl[brAndtl.length - 1];
-    const tr = trAndbl[0];
-    const bl = trAndbl[trAndbl.length - 1];
-
-    // draw br + tl
-    maskedCornersMat.drawCircle(tl, 5, new cv.Vec3(255, 255, 255), -1);
-    maskedCornersMat.drawCircle(br, 5, new cv.Vec3(255, 255, 255), -1);
-    maskedCornersMat.drawCircle(tr, 5, new cv.Vec3(255, 255, 255), -1);
-    maskedCornersMat.drawCircle(bl, 5, new cv.Vec3(255, 255, 255), -1);
-
-    // draw the contours
-    maskedCornersMat.drawContours([contour], new cv.Vec3(255, 255, 0));
-
-    // approxPoints.forEach((ap, i) => {
-    //     maskedCornersMat.drawCircle(ap, 4, new cv.Vec3(255,255,255), -1);
-    //     maskedCornersMat.putText("" + i, ap, cv.FONT_HERSHEY_SIMPLEX, 0.8, new cv.Vec3(255,0,0), cv.LINE_4);
-    // });
-
-    cv.imshow("testing", maskedCornersMat);
-    cv.waitKey(1);
 
     // find the lines in the drawn contours
     const lines = maskedCornersMat
@@ -155,24 +133,21 @@ module.exports = (imageMat, options, targetResolution) => {
     const topMostY = linePoints.y[0];
     const bottomMostY = linePoints.y[linePoints.y.length - 1];
 
-    // 110% size of sides is acceptable for intersections
-    const acceptedMarginsForIntersectionsPercentage = 1.1;
-
     // create geometric center in order to figure out the angles
-    const getCenter = arr =>
-        arr.reduce((total = 0, currX, index, arr) => {
-            total += arr[index - 1] ? Math.abs(currX - arr[index - 1]) : 0; // x
+    // const getCenter = arr =>
+    //     arr.reduce((total = 0, currX, index, arr) => {
+    //         total += arr[index - 1] ? Math.abs(currX - arr[index - 1]) : 0; // x
 
-            // last?
-            if (index === arr.length - 1) {
-                return Number(arr[0]) + Number(total / 2);
-            }
+    //         // last?
+    //         if (index === arr.length - 1) {
+    //             return Number(arr[0]) + Number(total / 2);
+    //         }
 
-            return Number(total);
-        }, 0);
+    //         return Number(total);
+    //     }, 0);
 
-    const geoCenterX = getCenter(linePoints.x);
-    const geoCenterY = getCenter(linePoints.y);
+    // const geoCenterX = getCenter(linePoints.x);
+    // const geoCenterY = getCenter(linePoints.y);
 
     // get the intersections of all the lines
     const intersections = [];
@@ -203,10 +178,10 @@ module.exports = (imageMat, options, targetResolution) => {
 
                 // is the intersection reasonably within the area of the board?
                 if (
-                    intersect.x >= leftMostX / acceptedMarginsForIntersectionsPercentage &&
-                    intersect.x <= rightMostX * acceptedMarginsForIntersectionsPercentage &&
-                    intersect.y >= topMostY / acceptedMarginsForIntersectionsPercentage &&
-                    intersect.y <= bottomMostY * acceptedMarginsForIntersectionsPercentage
+                    intersect.x >= leftMostX / options.acceptedMarginsForIntersectionsPercentage &&
+                    intersect.x <= rightMostX * options.acceptedMarginsForIntersectionsPercentage &&
+                    intersect.y >= topMostY / options.acceptedMarginsForIntersectionsPercentage &&
+                    intersect.y <= bottomMostY * options.acceptedMarginsForIntersectionsPercentage
                 ) {
                     intersections.push(intersect);
                 }
@@ -215,85 +190,126 @@ module.exports = (imageMat, options, targetResolution) => {
         // find ending one
     });
 
-    // get angles from geometric center to all the intersecting points
-    const angles = [];
-    intersections.forEach(intersection => {
-        const angle =
-            (Math.atan2(intersection.y - geoCenterY, intersection.x - geoCenterX) * 180) / Math.PI +
-            180;
-        angles[Math.floor(angle)] = intersection;
-    });
-
-    // get all the gaps (in degrees) between angles, with value referencing the angle index
-    const gaps = {};
-    Object.keys(angles)
-        .sort((a, b) => a - b)
-        .forEach((angle, index, arr) => {
-            if (index === 0) {
-                return;
-            }
-            gaps[Math.floor(Math.abs(arr[(index + 1) % arr.length] - arr[index]))] = angle;
+    const brAndtl = intersections
+        .map(p => p)
+        .sort((left, right) => right.x + right.y - (left.x + left.y));
+    const trAndbl = intersections
+        .map(p => p)
+        .sort((left, right) => right.x - right.y - (left.x - left.y));
+    const br = new cv.Point2(brAndtl[0].x, brAndtl[0].y);
+    const tl = new cv.Point2(brAndtl[brAndtl.length - 1].x, brAndtl[brAndtl.length - 1].y);
+    const tr = new cv.Point2(trAndbl[0].x, trAndbl[0].y);
+    const bl = new cv.Point2(trAndbl[trAndbl.length - 1].x, trAndbl[trAndbl.length - 1].y);
+    
+    if(drawVisuals) {
+        intersections.forEach(intersection => {
+            colorFilteredCornersMat.drawRectangle(
+                new cv.Point2(intersection.x - 5, intersection.y - 5),
+                new cv.Point2(intersection.x + 5, intersection.y + 5),
+                new cv.Vec3(255, 255, 255),
+                -1
+            );
         });
-
-    //
-    const fourSharpestAngles = Object.keys(gaps)
-        .slice(-4)
-        .map(gapKey => Number(gaps[gapKey]));
-
-    const topRightPoints = angles
-        .slice(fourSharpestAngles[0] + 1, fourSharpestAngles[1])
-        .filter(a => a !== undefined);
-    const bottomRightPoints = angles
-        .slice(fourSharpestAngles[1] + 1, fourSharpestAngles[2])
-        .filter(a => a !== undefined);
-    const bottomLeftPoints = angles
-        .slice(fourSharpestAngles[2] + 1, fourSharpestAngles[3])
-        .filter(a => a !== undefined);
-    const topLeftPoints = angles
-        .slice(0, fourSharpestAngles[0])
-        .concat(angles.slice(fourSharpestAngles[3] + 1))
-        .filter(a => a !== undefined);
-
-    if (
-        topRightPoints.length === 0 ||
-        bottomRightPoints.length === 0 ||
-        bottomLeftPoints.length === 0 ||
-        topLeftPoints.length === 0
-    ) {
-        // failed to identify one of the corners
-        const e = new Error(
-            "Failed to identify all 4 corners, only got " +
-                ((topRightPoints.length > 0) +
-                    (bottomRightPoints.length > 0) +
-                    (bottomLeftPoints.length > 0) +
-                    (topLeftPoints.length > 0))
-        );
-        e.maskedCornersMat = maskedCornersMat;
-        e.lines = lines;
-        throw e;
+    
+        lines.forEach(line => {
+            colorFilteredCornersMat.drawLine(
+                new cv.Point2(line.x1, line.y1),
+                new cv.Point2(line.x2, line.y2),
+                new cv.Vec3(parseInt(Math.random() * 255),0,parseInt(Math.random() * 255)),
+                2
+            );
+        });
+    
+        // draw br + tl
+        colorFilteredCornersMat.putText("tl", tl, cv.FONT_HERSHEY_SIMPLEX, 0.9, new cv.Vec3(255,255,255), cv.LINE_4);
+        colorFilteredCornersMat.drawCircle(tl, 5, new cv.Vec3(255, 0, 100), -1);
+        colorFilteredCornersMat.putText("br", br, cv.FONT_HERSHEY_SIMPLEX, 0.9, new cv.Vec3(255,255,255), cv.LINE_4);
+        colorFilteredCornersMat.drawCircle(br, 5, new cv.Vec3(255, 0, 100), -1);
+        colorFilteredCornersMat.putText("tr", tr, cv.FONT_HERSHEY_SIMPLEX, 0.9, new cv.Vec3(255,255,255), cv.LINE_4);
+        colorFilteredCornersMat.drawCircle(tr, 5, new cv.Vec3(255, 0, 100), -1);
+        colorFilteredCornersMat.putText("bl", bl, cv.FONT_HERSHEY_SIMPLEX, 0.9, new cv.Vec3(255,255,255), cv.LINE_4);
+        colorFilteredCornersMat.drawCircle(bl, 5, new cv.Vec3(255, 0, 100), -1);
     }
 
-    const avgPoint = arr =>
-        arr.reduce((prev, current, index) => {
-            if (current !== undefined) {
-                prev.x = (prev.x || 0) + current.x;
-                prev.y = (prev.y || 0) + current.y;
-            }
+    // get angles from geometric center to all the intersecting points
+    // const angles = [];
+    // intersections.forEach(intersection => {
+    //     const angle =
+    //         (Math.atan2(intersection.y - geoCenterY, intersection.x - geoCenterX) * 180) / Math.PI +
+    //         180;
+    //     angles[Math.floor(angle)] = intersection;
+    // });
 
-            if (index === arr.length - 1) {
-                prev.x = prev.x / Object.keys(arr).length;
-                prev.y = prev.y / Object.keys(arr).length;
-            }
+    // // get all the gaps (in degrees) between angles, with value referencing the angle index
+    // const gaps = {};
+    // Object.keys(angles)
+    //     .sort((a, b) => a - b)
+    //     .forEach((angle, index, arr) => {
+    //         if (index === 0) {
+    //             return;
+    //         }
+    //         gaps[Math.floor(Math.abs(arr[(index + 1) % arr.length] - arr[index]))] = angle;
+    //     });
 
-            return prev;
-        });
+    // //
+    // const fourSharpestAngles = Object.keys(gaps)
+    //     .slice(-4)
+    //     .map(gapKey => Number(gaps[gapKey]));
 
-    const topRightPoint = avgPoint(topRightPoints);
-    const topLeftPoint = avgPoint(topLeftPoints);
-    const bottomRightPoint = avgPoint(bottomRightPoints);
-    const bottomLeftPoint = avgPoint(bottomLeftPoints);
+    // const topRightPoints = angles
+    //     .slice(fourSharpestAngles[0] + 1, fourSharpestAngles[1])
+    //     .filter(a => a !== undefined);
+    // const bottomRightPoints = angles
+    //     .slice(fourSharpestAngles[1] + 1, fourSharpestAngles[2])
+    //     .filter(a => a !== undefined);
+    // const bottomLeftPoints = angles
+    //     .slice(fourSharpestAngles[2] + 1, fourSharpestAngles[3])
+    //     .filter(a => a !== undefined);
+    // const topLeftPoints = angles
+    //     .slice(0, fourSharpestAngles[0])
+    //     .concat(angles.slice(fourSharpestAngles[3] + 1))
+    //     .filter(a => a !== undefined);
 
-    const srcPoints = [topLeftPoint, topRightPoint, bottomRightPoint, bottomLeftPoint];
+    // if (
+    //     topRightPoints.length === 0 ||
+    //     bottomRightPoints.length === 0 ||
+    //     bottomLeftPoints.length === 0 ||
+    //     topLeftPoints.length === 0
+    // ) {
+    //     // failed to identify one of the corners
+    //     const e = new Error(
+    //         "Failed to identify all 4 corners, only got " +
+    //             ((topRightPoints.length > 0) +
+    //                 (bottomRightPoints.length > 0) +
+    //                 (bottomLeftPoints.length > 0) +
+    //                 (topLeftPoints.length > 0))
+    //     );
+    //     e.maskedCornersMat = maskedCornersMat;
+    //     e.lines = lines;
+    //     throw e;
+    // }
+
+    // const avgPoint = arr =>
+    //     arr.reduce((prev, current, index) => {
+    //         if (current !== undefined) {
+    //             prev.x = (prev.x || 0) + current.x;
+    //             prev.y = (prev.y || 0) + current.y;
+    //         }
+
+    //         if (index === arr.length - 1) {
+    //             prev.x = prev.x / Object.keys(arr).length;
+    //             prev.y = prev.y / Object.keys(arr).length;
+    //         }
+
+    //         return prev;
+    //     });
+
+    // const topRightPoint = avgPoint(topRightPoints);
+    // const topLeftPoint = avgPoint(topLeftPoints);
+    // const bottomRightPoint = avgPoint(bottomRightPoints);
+    // const bottomLeftPoint = avgPoint(bottomLeftPoints);
+
+    const srcPoints = [tl, tr, br, bl];
 
     const minRes = Math.min(targetResolution.height, targetResolution.width);
 
@@ -304,12 +320,12 @@ module.exports = (imageMat, options, targetResolution) => {
     const pad = options.boardPadding * -1;
 
     // make the destination points, with scaling
-    const topLeft = new cv.Point(0 - pad, 0 - pad);
-    const topRight = new cv.Point(width * options.xScale + pad, 0 - pad);
-    const bottomRight = new cv.Point(width * options.xScale + pad, height * options.yScale + pad);
-    const bottomLeft = new cv.Point(0 - pad, height * options.yScale + pad);
+    const dstTl = new cv.Point(0 - pad, 0 - pad);
+    const dstTr = new cv.Point(width * options.xScale + pad, 0 - pad);
+    const dstBr = new cv.Point(width * options.xScale + pad, height * options.yScale + pad);
+    const dstbL = new cv.Point(0 - pad, height * options.yScale + pad);
 
-    const dstPoints = [topLeft, topRight, bottomRight, bottomLeft];
+    const dstPoints = [dstTl, dstTr, dstBr, dstbL];
 
     // do rotations
     for (let i = 0; i < options.rotations; i++) {
@@ -323,7 +339,6 @@ module.exports = (imageMat, options, targetResolution) => {
         colorFilteredCornersMat,
         foundCorners: lines.length,
         corners: srcPoints,
-        lines,
-        center: { x: geoCenterX, y: geoCenterY }
+        lines
     };
 };

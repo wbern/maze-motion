@@ -21,16 +21,16 @@ module.exports = {
             );
         });
     },
-    drawBoardCenter: (mat, center) => {
-        if(center) {
-            mat.drawCircle(
-                new cv.Point2(center.x, center.y),
-                8,
-                new cv.Vec3(255, 0, 255),
-                2
-            );
-        }
-    },
+    // drawBoardCenter: (mat, center) => {
+    //     if(center) {
+    //         mat.drawCircle(
+    //             new cv.Point2(center.x, center.y),
+    //             8,
+    //             new cv.Vec3(255, 0, 255),
+    //             2
+    //         );
+    //     }
+    // },
     drawBalls: (mat, balls = []) => {
         balls.forEach(circle => {
             // mat.drawEllipse(circle, new cv.Vec3(255, 0, 0), 2);

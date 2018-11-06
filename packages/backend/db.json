@@ -970,8 +970,12 @@
       "houghLinesRho": 1,
       "houghLinesTheta": 0.017453292519943295,
       "houghLinesThreshold": 25,
-      "houghLinesMinLineLength": 80,
-      "houghLinesMaxLineGap": 30,
+      "houghLinesMinLineLength": 200,
+      "houghLinesMaxLineGap": 1000,
+      "approxPolyDP": true,
+      "closed": false,
+      "epsilonPercentage": 0.0005,
+      "acceptedMarginsForIntersectionsPercentage": 1.5,
       "cornerHSVMasks": [
         {
           "min": [
