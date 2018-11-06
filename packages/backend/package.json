@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "prebla": "env-cmd ./.env node ./test.js",
+    "bla": "node ./test.js",
     "preinstallx": "npm run set-OPENCV4NODEJS_DISABLE_AUTOBUILD && npm run set-OPENCV_INCLUDE_DIR && npm run set-OPENCV_LIB_DIR && npm run set-OPENCV_BIN_DIR",
     "save-OPENCV4NODEJS_DISABLE_AUTOBUILD": "set OPENCV4NODEJS_DISABLE_AUTOBUILD_SAVE=%OPENCV4NODEJS_DISABLE_AUTOBUILD%",
     "save-OPENCV_INCLUDE_DIR": "set OPENCV_INCLUDE_DIR_SAVE=%OPENCV_INCLUDE_DIR%",
@@ -26,6 +28,8 @@
   "license": "ISC",
   "dependencies": {
     "cross-env": "^5.1.4",
+    "dotenv": "^6.1.0",
+    "env-cmd": "^8.0.2",
     "express": "^4.16.3",
     "lowdb": "^1.0.0",
     "mathjs": "^5.2.0",

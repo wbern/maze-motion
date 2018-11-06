@@ -47,14 +47,7 @@
       ]
     },
     "1": {
-      "zones": [
-        {
-          "y": 0,
-          "x": 0,
-          "width": 640,
-          "height": 480
-        }
-      ]
+      "zones": []
     },
     "2": {
       "zones": [
@@ -951,8 +944,8 @@
       }
     },
     "resolution": {
-      "width": 320,
-      "height": 240
+      "width": 640,
+      "height": 480
     },
     "cameraSaturation": 45,
     "cameraContrast": 50,
@@ -965,20 +958,29 @@
     "cornerIdentification": {
       "cornerPadding": 5,
       "cornerDilation": 1,
-      "erodePixels": 0,
+      "erodePixels": 2,
       "xScale": 1.3,
       "yScale": 1,
       "boardPadding": 10,
       "rotations": 3,
+      "cannyThreshold1": 50,
+      "cannyThreshold2": 50,
+      "cannyApertureSize": 7,
+      "cannyL2gradient": false,
+      "houghLinesRho": 1,
+      "houghLinesTheta": 0.017453292519943295,
+      "houghLinesThreshold": 25,
+      "houghLinesMinLineLength": 80,
+      "houghLinesMaxLineGap": 30,
       "cornerHSVMasks": [
         {
           "min": [
             30,
-            145,
+            65,
             120
           ],
           "max": [
-            150,
+            55,
             255,
             255
           ]
@@ -1007,7 +1009,7 @@
       "ballHSVMasks": [
         {
           "min": [
-            150,
+            50,
             200,
             200
           ],

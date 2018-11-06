@@ -55,6 +55,7 @@ class Calibrate extends Component {
             availableCameraViewModes: [
                 "2D Image",
                 "Image",
+                "Color Filtered Corners Mask",
                 "Corners Mask",
                 "Ball Mask",
                 "Ball Background Mask",

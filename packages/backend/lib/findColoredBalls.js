@@ -73,21 +73,36 @@ module.exports = (boardImage, sections, options) => {
     const cannyMat = colorFilteredMat.canny(threshold1, threshold2, apertureSize, L2gradient);
 
     const mode = cv.RETR_CCOMP;
-    const findContoursMethod = cv.CHAIN_APPROX_SIMPLE;
+    const findContoursMethod = cv.CHAIN_APPROX_NONE;
     const foundContours = cannyMat.findContours(mode, findContoursMethod);
     cannyMat.drawContours(foundContours, new cv.Vec3(255, 255, 255));
 
-    let circles = foundContours.map(c => c.fitEllipse());
+    // create geometric center in order to figure out the angles
+    const getCenter = arr =>
+        arr.reduce((total = 0, currX, index, arr) => {
+            total += arr[index - 1] ? Math.abs(currX - arr[index - 1]) : 0; // x
 
-    // circles = circles.filter(
-    //     c =>
-    //         c.size > options.houghCircleSettings.minRadius &&
-    //         c.size < options.houghCircleSettings.maxRadius
-    // );
+            // last?
+            if (index === arr.length - 1) {
+                return Number(arr[0]) + Number(total / 2);
+            }
+
+            return Number(total);
+        }, 0);
+
+    const circles = foundContours.map(contour => {
+        const points = contour.getPoints();
+        return {
+            center: {
+                x: getCenter(points.map(p => p.x)),
+                y: getCenter(points.map(p => p.y)),
+            }
+        };
+    });
 
     const foundBalls = {
         circles,
-        circle: circles.sort((a, b) => b.size - a.size)[0],
+        // circle: circles.sort((a, b) => b.size - a.size)[0],
         colorFilteredMat
     };
 

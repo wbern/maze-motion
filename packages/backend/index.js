@@ -3,6 +3,7 @@ const getTransformationMatrixMatNew = require("./lib/getTransformationMatrixMatN
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
 const findColoredBalls = require("./lib/findColoredBalls");
+const visualAid = require("./lib/visualAid");
 
 const app = require("express")();
 const http = require("http").Server(app);
@@ -11,6 +12,8 @@ const server = http.listen(8080, function() {
 });
 const io = require("socket.io").listen(server);
 const db = require("./db");
+
+require("dotenv").config();
 
 // globals
 let settings = db.getSettings();
@@ -315,7 +318,7 @@ io.on(clientMsg.connection, function(socket) {
     });
 });
 
-const useCamera = false;
+const useCamera = true;
 const getImageAsync = useCamera
     ? () => wCap.readAsync()
     : () => cv.imreadAsync("./board_with_ball.png");
@@ -332,6 +335,11 @@ const track = () => {
     }
     getImagePromise.then(board => {
         getImagePromise = getImageAsync();
+
+        if (JSON.parse(process.env.showCapture)) {
+            cv.imshow("capture", board);
+            cv.waitKey(1);
+        }
 
         cycleMat("Image", mats, board);
 
@@ -356,7 +364,13 @@ const track = () => {
                     status.cornerIdentificationFailCount = 0;
                     cornerTrackingsPerSecond++;
                 } catch (e) {
-                    // failed to get corners
+                    // failed to get corners, at least draw lines
+                    if (status.calibrationActive) {
+                        visualAid.drawBoardLines(mats["Image"], e.lines, new cv.Vec3(0, 0, 255));
+                    }
+                    cycleMat("Corners Mask", mats, e.maskedCornersMat);
+                    cycleMat("Color Filtered Corners Mask", mats, e.colorFilteredCornersMat);
+
                     status.cornerIdentificationFailCount++;
                     throw e;
                 }
@@ -365,6 +379,7 @@ const track = () => {
             const {
                 transformationMatrixMat,
                 maskedCornersMat,
+                colorFilteredCornersMat,
                 foundCorners,
                 corners,
                 lines,
@@ -375,6 +390,7 @@ const track = () => {
             if (mats["Corners Transformation Matrix"] !== transformationMatrixMat) {
                 cycleMat("Corners Transformation Matrix", mats, transformationMatrixMat);
                 cycleMat("Corners Mask", mats, maskedCornersMat);
+                cycleMat("Color Filtered Corners Mask", mats, colorFilteredCornersMat);
             }
 
             status.foundCorners = foundCorners;
@@ -427,15 +443,7 @@ const track = () => {
 
                     if (status.calibrationActive && settings.visualAid.ballCircle) {
                         // around the ball
-                        ballData.circles.forEach(circle => {
-                            mats["2D Image"].drawEllipse(circle, new cv.Vec3(255, 0, 0), 2);
-                            mats["2D Image"].drawCircle(
-                                new cv.Point2(circle.center.x, circle.center.y),
-                                1,
-                                new cv.Vec3(255, 255, 0),
-                                2
-                            );
-                        });
+                        visualAid.drawBalls(mats["2D Image"], ballData.circles);
                     }
 
                     ballTrackingsPerSecond++;
@@ -447,30 +455,9 @@ const track = () => {
 
             // visual aid to show which corners were recognized
             if (status.calibrationActive && corners && settings.visualAid.cornerRectangles) {
-                corners.forEach(point => {
-                    mats["Image"].drawCircle(
-                        new cv.Point2(point.x, point.y),
-                        3,
-                        new cv.Vec3(255, 0, 0),
-                        2
-                    );
-                });
-
-                mats["Image"].drawCircle(
-                    new cv.Point2(center.x, center.y),
-                    8,
-                    new cv.Vec3(255, 0, 255),
-                    2
-                );
-
-                lines.forEach(line => {
-                    mats["Image"].drawLine(
-                        new cv.Point2(line.x1, line.y1),
-                        new cv.Point2(line.x2, line.y2),
-                        new cv.Vec3(255, 0, 0),
-                        1
-                    );
-                });
+                visualAid.drawBoardCorners(mats["Image"], corners);
+                visualAid.drawBoardCenter(mats["Image"], center);
+                visualAid.drawBoardLines(mats["Image"], lines);
             }
 
             generalTrackingsPerSecond++;
@@ -484,8 +471,8 @@ const track = () => {
             }
         } catch (e) {
             errorTrackingsPerSecond++;
-            status.errorMessage = e;
-            console.trace(e);
+            status.errorMessage = e.message;
+            console.trace(new Error(e));
             setTimeout(track, failedCaptureDelay);
         }
     });

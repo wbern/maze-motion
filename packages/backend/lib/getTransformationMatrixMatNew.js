@@ -5,6 +5,24 @@ module.exports = (imageMat, options, targetResolution) => {
     const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
     let maskedCornersMat;
 
+    options = {
+        cannyThreshold1: 50,
+        cannyThreshold2: 50,
+        cannyApertureSize: 7,
+        cannyL2gradient: false,
+
+        houghLinesRho: 1,
+        houghLinesTheta: Math.PI / 180,
+        houghLinesThreshold: 25,
+        houghLinesMinLineLength: 80,
+        houghLinesMaxLineGap: 150,
+
+        closed: false,
+        epsilonPercentage: 0.005,
+
+        ...options
+    };
+
     // get the colors matching the corner colors
     options.cornerHSVMasks.forEach(hsvMask => {
         const min = new cv.Vec3(hsvMask.min[0], hsvMask.min[1], hsvMask.min[2]);
@@ -13,41 +31,71 @@ module.exports = (imageMat, options, targetResolution) => {
         maskedCornersMat = imageMat.copyTo(maskedCornersMat || new cv.Mat(), rangeMask);
     });
 
+    const colorFilteredCornersMat = maskedCornersMat;
+
     // get the contours of the corners
     maskedCornersMat = maskedCornersMat
         .cvtColor(cv.COLOR_BGR2GRAY)
         .threshold(0, 255, cv.THRESH_BINARY);
 
-    // this is a performance hog
-    // if(maskedCornersMat.countNonZero() === 0) {
-    //     throw new Error("Could not detect any sides of the board based on the color range specified.")
-    // }
-
-    // // maskedCornersMat = maskedCornersMat.gaussianBlur(
-    // //     new cv.Size(1, 1),
-    // //     5,
-    // //     5
-    // // );
     if (options.erodePixels && options.erodePixels > 0) {
         maskedCornersMat = maskedCornersMat.erode(
             new cv.Mat(Array(options.erodePixels).fill([255, 255, 255]), cv.CV_8U)
         );
     }
-    maskedCornersMat = maskedCornersMat.erode(new cv.Mat(Array(6).fill([255, 255, 255]), cv.CV_8U));
-    const threshold1 = 50;
-    const threshold2 = 50;
-    const apertureSize = 7;
-    const L2gradient = false;
-    maskedCornersMat = maskedCornersMat.canny(threshold1, threshold2, apertureSize, L2gradient);
-    // get lines of the matching edges mask
-    const rho = 1;
-    const theta = Math.PI / 180;
-    const threshold = 25;
-    const minLineLength = 80;
-    const maxLineGap = 150;
+    maskedCornersMat = maskedCornersMat.canny(
+        options.cannyThreshold1,
+        options.cannyThreshold2,
+        options.cannyApertureSize,
+        options.cannyL2gradient
+    );
 
+    const mode = cv.RETR_CCOMP;
+    const findContoursMethod = cv.CHAIN_APPROX_SIMPLE;
+    const contours = maskedCornersMat.findContours(mode, findContoursMethod);
+
+    if (contours.length === 0) {
+        const e = Error("Could not identify contours of the board");
+        e.maskedCornersMat = maskedCornersMat;
+        e.colorFilteredCornersMat = colorFilteredCornersMat;
+        throw e;
+    }
+
+    const contoursBySize = contours.sort((left, right) => right.area - left.area);
+
+    // draw the mat completely black, only draw outer contours
+    maskedCornersMat.drawRectangle(
+        new cv.Point2(0, 0),
+        new cv.Point2(maskedCornersMat.sizes[1], maskedCornersMat.sizes[0]),
+        new cv.Vec3(0, 0, 0),
+        cv.FILLED
+    );
+
+    // draw the contours
+    maskedCornersMat.drawContours([contoursBySize[0]], new cv.Vec3(255, 255, 0));
+
+    // let approxPoints = contoursBySize[0].approxPolyDP(
+    //     options.epsilonPercentage * contoursBySize[0].arcLength(options.closed),
+    //     options.closed
+    // );
+
+    // approxPoints.forEach((ap, i) => {
+    //     maskedCornersMat.drawCircle(ap, 4, new cv.Vec3(255,255,255), -1);
+    //     maskedCornersMat.putText("" + i, ap, cv.FONT_HERSHEY_SIMPLEX, 0.8, new cv.Vec3(255,0,0), cv.LINE_4);
+    // });
+
+    cv.imshow("testing", maskedCornersMat);
+    cv.waitKey(1);
+
+    // find the lines in the drawn contours
     const lines = maskedCornersMat
-        .houghLinesP(rho, theta, threshold, minLineLength, maxLineGap)
+        .houghLinesP(
+            options.houghLinesRho,
+            options.houghLinesTheta,
+            options.houghLinesThreshold,
+            options.houghLinesMinLineLength,
+            options.houghLinesMaxLineGap
+        )
         .map(line => ({
             y2: line.x,
             y1: line.z,
@@ -57,7 +105,11 @@ module.exports = (imageMat, options, targetResolution) => {
 
     if (lines.length < 4) {
         // no lines found or just a few, assume something's wrong.
-        throw new Error("Could not identify enough lines of the board, got " + lines.length + ".");
+        const e = Error("Could not identify enough lines of the board, got " + lines.length + ".");
+        e.lines = lines;
+        e.maskedCornersMat = maskedCornersMat;
+        e.colorFilteredCornersMat = colorFilteredCornersMat;
+        throw e;
     }
 
     // map all the lines on separate x and y axis
@@ -189,13 +241,16 @@ module.exports = (imageMat, options, targetResolution) => {
         topLeftPoints.length === 0
     ) {
         // failed to identify one of the corners
-        throw new Error(
+        const e = new Error(
             "Failed to identify all 4 corners, only got " +
                 ((topRightPoints.length > 0) +
                     (bottomRightPoints.length > 0) +
                     (bottomLeftPoints.length > 0) +
                     (topLeftPoints.length > 0))
         );
+        e.maskedCornersMat = maskedCornersMat;
+        e.lines = lines;
+        throw e;
     }
 
     const avgPoint = arr =>
@@ -245,6 +300,7 @@ module.exports = (imageMat, options, targetResolution) => {
     return {
         transformationMatrixMat,
         maskedCornersMat,
+        colorFilteredCornersMat,
         foundCorners: lines.length,
         corners: srcPoints,
         lines,
