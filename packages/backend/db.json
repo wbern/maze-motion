@@ -974,7 +974,7 @@
       "houghLinesMaxLineGap": 1000,
       "approxPolyDP": true,
       "closed": false,
-      "epsilonPercentage": 0.0005,
+      "epsilonPercentage": 0.005,
       "acceptedMarginsForIntersectionsPercentage": 1.5,
       "cornerHSVMasks": [
         {

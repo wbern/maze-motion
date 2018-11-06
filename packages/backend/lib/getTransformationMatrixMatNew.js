@@ -183,7 +183,15 @@ module.exports = (imageMat, options, targetResolution, drawVisuals) => {
                     intersect.y >= topMostY / options.acceptedMarginsForIntersectionsPercentage &&
                     intersect.y <= bottomMostY * options.acceptedMarginsForIntersectionsPercentage
                 ) {
-                    intersections.push(intersect);
+                    // is it inside the image at all?
+                    if (
+                        intersect.x >= 0 &&
+                        intersect.x <= maskedCornersMat.sizes[1] &&
+                        intersect.y >= 0 &&
+                        intersect.y <= maskedCornersMat.sizes[0]
+                    ) {
+                        intersections.push(intersect);
+                    }
                 }
             }
         });
@@ -200,8 +208,8 @@ module.exports = (imageMat, options, targetResolution, drawVisuals) => {
     const tl = new cv.Point2(brAndtl[brAndtl.length - 1].x, brAndtl[brAndtl.length - 1].y);
     const tr = new cv.Point2(trAndbl[0].x, trAndbl[0].y);
     const bl = new cv.Point2(trAndbl[trAndbl.length - 1].x, trAndbl[trAndbl.length - 1].y);
-    
-    if(drawVisuals) {
+
+    if (drawVisuals) {
         intersections.forEach(intersection => {
             colorFilteredCornersMat.drawRectangle(
                 new cv.Point2(intersection.x - 5, intersection.y - 5),
@@ -210,24 +218,52 @@ module.exports = (imageMat, options, targetResolution, drawVisuals) => {
                 -1
             );
         });
-    
+
         lines.forEach(line => {
             colorFilteredCornersMat.drawLine(
                 new cv.Point2(line.x1, line.y1),
                 new cv.Point2(line.x2, line.y2),
-                new cv.Vec3(parseInt(Math.random() * 255),0,parseInt(Math.random() * 255)),
+                new cv.Vec3(parseInt(Math.random() * 255), 0, parseInt(Math.random() * 255)),
                 2
             );
         });
-    
+
         // draw br + tl
-        colorFilteredCornersMat.putText("tl", tl, cv.FONT_HERSHEY_SIMPLEX, 0.9, new cv.Vec3(255,255,255), cv.LINE_4);
+        colorFilteredCornersMat.putText(
+            "tl",
+            tl,
+            cv.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            new cv.Vec3(255, 255, 255),
+            cv.LINE_4
+        );
         colorFilteredCornersMat.drawCircle(tl, 5, new cv.Vec3(255, 0, 100), -1);
-        colorFilteredCornersMat.putText("br", br, cv.FONT_HERSHEY_SIMPLEX, 0.9, new cv.Vec3(255,255,255), cv.LINE_4);
+        colorFilteredCornersMat.putText(
+            "br",
+            br,
+            cv.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            new cv.Vec3(255, 255, 255),
+            cv.LINE_4
+        );
         colorFilteredCornersMat.drawCircle(br, 5, new cv.Vec3(255, 0, 100), -1);
-        colorFilteredCornersMat.putText("tr", tr, cv.FONT_HERSHEY_SIMPLEX, 0.9, new cv.Vec3(255,255,255), cv.LINE_4);
+        colorFilteredCornersMat.putText(
+            "tr",
+            tr,
+            cv.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            new cv.Vec3(255, 255, 255),
+            cv.LINE_4
+        );
         colorFilteredCornersMat.drawCircle(tr, 5, new cv.Vec3(255, 0, 100), -1);
-        colorFilteredCornersMat.putText("bl", bl, cv.FONT_HERSHEY_SIMPLEX, 0.9, new cv.Vec3(255,255,255), cv.LINE_4);
+        colorFilteredCornersMat.putText(
+            "bl",
+            bl,
+            cv.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            new cv.Vec3(255, 255, 255),
+            cv.LINE_4
+        );
         colorFilteredCornersMat.drawCircle(bl, 5, new cv.Vec3(255, 0, 100), -1);
     }
 
