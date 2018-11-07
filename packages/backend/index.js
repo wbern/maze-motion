@@ -336,9 +336,16 @@ const track = () => {
     getImagePromise.then(board => {
         getImagePromise = getImageAsync();
 
-        if (JSON.parse(process.env.showCapture)) {
-            cv.imshow("capture", board);
-            cv.waitKey(1);
+        if (JSON.parse(process.env.showCapture || false)) {
+            let matNames = Object.keys(mats);
+            if(matNames.length > 0) {
+                matNames.forEach(matName => {
+                    if(mats[matName] && mats[matName].constructor.name === "Mat") {
+                        cv.imshow(matName, mats[matName]);
+                    }
+                })
+                cv.waitKey(1);
+            }
         }
 
         cycleMat("Image", mats, board);
