@@ -384,8 +384,7 @@ const track = () => {
                 colorFilteredCornersMat,
                 foundCorners,
                 corners,
-                lines,
-                center
+                lines
             } = transformationData;
 
             // we received a new matrix
