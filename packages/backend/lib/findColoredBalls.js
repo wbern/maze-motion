@@ -1,60 +1,6 @@
 const cv = require("opencv4nodejs");
 
-const params = new cv.SimpleBlobDetectorParams();
-params.blobColor = 255;
-params.filterByArea = true;
-params.filterByCircularity = false;
-params.filterByColor = false;
-params.filterByConvexity = false;
-params.filterByInertia = false;
-// params.maxArea = 0;
-// params.maxCircularity = 0;
-// params.maxConvexity = 0;
-// params.maxInertiaRatio = 0;
-// params.maxThreshold = 0;
-params.minArea = 50;
-// params.minCircularity = 0;
-// params.minConvexity = 0;
-// params.minDistBetweenBlobs = 0;
-// params.minInertiaRatio = 0;
-// params.minRepeatability = 0;
-// params.minThreshold = 0;
-// params.thresholdStep = 0;
-
-const blobDetector = new cv.SimpleBlobDetector(params);
-
 module.exports = (boardImage, sections, options) => {
-    // now try to normalize the flat image to have as many circular holes as possible
-    // const args = [
-    //     // method: Define the detection method. Currently this is the only one available in OpenCV
-    //     cv.HOUGH_GRADIENT,
-    //     // dp: The inverse ratio of resolution
-    //     1,
-    //     // minDist: Minimum distance between detected centers
-    //     options.houghCircleSettings.minDist,
-    //     // param1: Upper threshold for the internal Canny edge detector
-    //     options.houghCircleSettings.cannyUpperThreshold,
-    //     // param2: Threshold for center detection.
-    //     options.houghCircleSettings.centerDetectionThreshold,
-    //     // minRadius: Minimum radius to be detected. If unknown, put zero as default.
-    //     options.houghCircleSettings.minRadius,
-    //     // maxRadius: Maximum radius to be detected. If unknown, put zero as default
-    //     options.houghCircleSettings.maxRadius
-    // ];
-
-    // mark a range of grays as completely white, onto the forCirclesMat
-    // const backgroundMat = boardImage
-    //     // houghCircles requires grayscale
-    //     .cvtColor(cv.COLOR_BGR2GRAY)
-    //     // remove all existing pure-white colorings in the image
-    //     .threshold(254, 255, cv.THRESH_TRUNC)
-    //     .gaussianBlur(
-    //         new cv.Size(options.blurAmount, options.blurAmount),
-    //         options.blurKernel,
-    //         options.blurKernel
-    //     );
-
-    // create mat with relevant grays as white
     let colorFilteredMat = boardImage.cvtColor(cv.COLOR_BGR2HSV_FULL);
 
     let temp = new cv.Mat(boardImage.rows, boardImage.cols, cv.CV_8U);
@@ -66,12 +12,9 @@ module.exports = (boardImage, sections, options) => {
     });
     colorFilteredMat = temp.bgrToGray().threshold(1, 255, cv.THRESH_BINARY);
 
-    const threshold1 = 0;
-    const threshold2 = 0;
-    const apertureSize = 3;
-    const L2gradient = false;
-    const cannyMat = colorFilteredMat.canny(threshold1, threshold2, apertureSize, L2gradient);
+    const cannyMat = colorFilteredMat.canny(options.cannyThreshold1, options.cannyThreshold2, options.cannyApertureSize, options.cannyL2gradient);
 
+    // don't change these
     const mode = cv.RETR_CCOMP;
     const findContoursMethod = cv.CHAIN_APPROX_NONE;
     const foundContours = cannyMat.findContours(mode, findContoursMethod);
@@ -79,8 +22,8 @@ module.exports = (boardImage, sections, options) => {
 
     // create geometric center in order to figure out the angles
     const getCenter = arr =>
-        arr.reduce((total = 0, currX, index, arr) => {
-            total += arr[index - 1] ? Math.abs(currX - arr[index - 1]) : 0; // x
+        arr.reduce((total = 0, curr, index, arr) => {
+            total += arr[index - 1] ? Math.abs(curr - arr[index - 1]) : 0; // x
 
             // last?
             if (index === arr.length - 1) {

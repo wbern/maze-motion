@@ -973,6 +973,7 @@
       "houghLinesMinLineLength": 200,
       "houghLinesMaxLineGap": 1000,
       "approxPolyDP": true,
+      "maxSkips": 10,
       "closed": false,
       "epsilonPercentage": 0.005,
       "acceptedMarginsForIntersectionsPercentage": 1.5,
@@ -996,20 +997,10 @@
       "cornerRectangles": true
     },
     "ballIdentification": {
-      "trimCircleEdgePercentage": 0.2,
-      "minPaletteCount": 0,
-      "maxPaletteCount": 0,
-      "maxPercentage": 0,
-      "minPercentage": 0,
-      "houghCircleSettings": {
-        "minDist": 5,
-        "cannyUpperThreshold": 30,
-        "centerDetectionThreshold": 11,
-        "minRadius": 9,
-        "maxRadius": 15
-      },
-      "blurAmount": 1,
-      "blurKernel": 2,
+      "cannyThreshold1": 0,
+      "cannyThreshold2": 0,
+      "cannyApertureSize": 3,
+      "cannyL2gradient": false,
       "ballHSVMasks": [
         {
           "min": [
@@ -1024,6 +1015,47 @@
           ]
         }
       ]
+    },
+    "cameraSettings": {
+      "CAP_PROP_POS_MSEC": -1,
+      "CAP_PROP_POS_FRAMES": -1,
+      "CAP_PROP_POS_AVI_RATIO": -1,
+      "CAP_PROP_FRAME_WIDTH": 640,
+      "CAP_PROP_FRAME_HEIGHT": 480,
+      "CAP_PROP_FPS": 0,
+      "CAP_PROP_FOURCC": 844715353,
+      "CAP_PROP_FRAME_COUNT": -1,
+      "CAP_PROP_FORMAT": -1,
+      "CAP_PROP_MODE": -1,
+      "CAP_PROP_BRIGHTNESS": 0,
+      "CAP_PROP_CONTRAST": 45,
+      "CAP_PROP_SATURATION": 50,
+      "CAP_PROP_HUE": 0,
+      "CAP_PROP_GAIN": 1,
+      "CAP_PROP_EXPOSURE": -6,
+      "CAP_PROP_CONVERT_RGB": -1,
+      "CAP_PROP_WHITE_BALANCE_BLUE_U": 4600,
+      "CAP_PROP_RECTIFICATION": -1,
+      "CAP_PROP_MONOCHROME": 19,
+      "CAP_PROP_SHARPNESS": 2,
+      "CAP_PROP_AUTO_EXPOSURE": -1,
+      "CAP_PROP_GAMMA": 100,
+      "CAP_PROP_TEMPERATURE": -1,
+      "CAP_PROP_TRIGGER": -1,
+      "CAP_PROP_TRIGGER_DELAY": -1,
+      "CAP_PROP_WHITE_BALANCE_RED_V": -1,
+      "CAP_PROP_ZOOM": 27,
+      "CAP_PROP_FOCUS": 28,
+      "CAP_PROP_GUID": -1,
+      "CAP_PROP_ISO_SPEED": -1,
+      "CAP_PROP_BACKLIGHT": 3,
+      "CAP_PROP_PAN": 33,
+      "CAP_PROP_TILT": 34,
+      "CAP_PROP_ROLL": 35,
+      "CAP_PROP_IRIS": 36,
+      "CAP_PROP_SETTINGS": 0,
+      "CAP_PROP_BUFFERSIZE": -1,
+      "CAP_PROP_AUTOFOCUS": -1
     }
   }
 }

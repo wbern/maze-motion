@@ -4,6 +4,7 @@ const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
 const findColoredBalls = require("./lib/findColoredBalls");
 const visualAid = require("./lib/visualAid");
+const setActiveSections = require("./lib/setActiveSections");
 
 const app = require("express")();
 const http = require("http").Server(app);
@@ -14,94 +15,6 @@ const io = require("socket.io").listen(server);
 const db = require("./db");
 
 require("dotenv").config();
-
-// globals
-let settings = db.getSettings();
-
-const captureDelay = parseInt(process.env.captureDelay || 0); // 5 is prod-recommended for now
-const failedCaptureDelay = 100;
-const frontendResolution = { height: 480, width: 640 };
-
-// these get updated throughout the back-end runtime
-const mats = {};
-
-const status = {
-    activeSections: [],
-    lastActiveSections: [],
-    normalizedActiveSections: [],
-    timings: {
-        general: -1,
-        error: -1,
-        ball: -1,
-        corners: -1
-    },
-    cornerIdentificationFailCount: 0,
-    cornerStatus: () => {
-        if (status.cornerIdentificationFailCount === 0) {
-            return "ok";
-        } else if (status.cornerIdentificationFailCount < 10) {
-            return "warn";
-        } else {
-            return "err";
-        }
-    }
-};
-
-// open capture from camera
-const devicePort = parseInt(process.env.devicePort || 0);
-const wCap = new cv.VideoCapture(devicePort);
-
-// apply settings to camera etc.
-const applySettings = () => {
-    wCap.set(cv.CAP_PROP_FRAME_WIDTH, settings.resolution.width);
-    wCap.set(cv.CAP_PROP_FRAME_HEIGHT, settings.resolution.height);
-    if (settings.cameraSaturation) {
-        wCap.set(cv.CAP_PROP_SATURATION, settings.cameraSaturation);
-    }
-    if (settings.cameraContrast) {
-        wCap.set(cv.CAP_PROP_CONTRAST, settings.cameraContrast);
-    }
-    if (settings.cameraBrightness) {
-        wCap.set(cv.CAP_PROP_BRIGHTNESS, settings.cameraBrightness);
-    }
-    if (settings.cameraGain) {
-        wCap.set(cv.CV_CAP_PROP_GAIN, settings.cameraGain);
-    }
-};
-applySettings();
-
-// for our timings when debugging
-let generalTrackingsPerSecond = 0;
-let errorTrackingsPerSecond = 0;
-let ballTrackingsPerSecond = 0;
-let cornerTrackingsPerSecond = 0;
-
-setInterval(() => {
-    console.log("timing:", generalTrackingsPerSecond);
-    status.timings.general = generalTrackingsPerSecond;
-    generalTrackingsPerSecond = 0;
-    status.timings.error = errorTrackingsPerSecond;
-    errorTrackingsPerSecond = 0;
-    status.timings.ball = ballTrackingsPerSecond;
-    ballTrackingsPerSecond = 0;
-    status.timings.corners = cornerTrackingsPerSecond;
-    cornerTrackingsPerSecond = 0;
-}, 1000);
-
-// endpoints, who needs them though?
-// app.get("/image", function(req, res) {
-//     if (retrievedMats["2D Image"]) {
-//         const image = cv.imencode(".jpg", retrievedMats["2D Image"]);
-//         const base64 = Buffer.from(image).toString("base64");
-//         res.status(200).send(base64);
-//     } else {
-//         const mat = wCap.read();
-//         const image = cv.imencode(".jpg", mat);
-//         // let base64Image = Buffer.from(cv.imencode(".png", mat)).toString();
-//         const base64Image = Buffer.from(image).toString("base64");
-//         res.status(200).send(base64Image);
-//     }
-// });
 
 const clientMsg = {
     connection: "connection",
@@ -132,67 +45,112 @@ const serverMsg = {
     settings: "settings"
 };
 
-const setActiveSections = activeSections => {
-    // set active sections and a normalized array as well
-    status.activeSections = activeSections;
+// globals
+let settings = db.getSettings();
 
-    // set a normalized value based on previous captures
-    const normalizeValue = settings.sectionIdentification.normalizationValue;
+const captureDelay = parseInt(process.env.captureDelay || 0); // 5 is prod-recommended for now
+const failedCaptureDelay = parseInt(process.env.failedCaptureDelay || 100);
+const frontendResolution = { width: 640, height: 480 };
 
-    // add the newest to the history
-    status.lastActiveSections.unshift(activeSections);
+// these get updated throughout the back-end runtime
+const mats = {};
 
-    if (status.lastActiveSections.length >= normalizeValue) {
-        // we have enough captures to make a normalized result
-        if (status.lastActiveSections.length > normalizeValue) {
-            // Remove entries larger than the normalization value
-            status.lastActiveSections.splice(normalizeValue);
+const status = {
+    activeSections: [],
+    lastActiveSections: [],
+    normalizedActiveSections: [],
+    timings: {
+        general: -1,
+        error: -1,
+        ball: -1,
+        corners: -1
+    },
+    cornerIdentificationFailCount: 0,
+    cornerStatus: () => {
+        if (status.cornerIdentificationFailCount === 0) {
+            return "ok";
+        } else if (status.cornerIdentificationFailCount < 10) {
+            return "warn";
+        } else {
+            return "err";
         }
+    }
+};
 
-        // get occurence list of all active sections
-        const sectionsOccurenceCount = status.lastActiveSections.reduce((prev, currSections) => {
-            return currSections.reduce((prev, currSectionNumber) => {
-                prev[currSectionNumber] = (prev[currSectionNumber] || 0) + 1;
-                return prev;
-            }, prev);
-        }, {});
+// open capture from camera
+const devicePort = parseInt(process.env.devicePort || 0);
+let wCap = null;
+if (!JSON.parse(process.env.mockCamera || false)) {
+    wCap = new cv.VideoCapture(devicePort);
+}
 
-        // find the occurences that are consistently present in all last active sections
-        const alwaysPresentSections = [];
-        Object.keys(sectionsOccurenceCount).forEach(sectionName => {
-            if (sectionsOccurenceCount[sectionName] === normalizeValue) {
-                alwaysPresentSections.push(sectionName);
-            }
-        });
+// apply settings to camera etc.
+const applySettingsToCamera = () => {
+    // more generic settings for all camera options, works better, no?
+    if (settings.cameraSettings) {
+        const currentCameraSettings = getCameraProperties();
 
-        // remove sections that are completely gone from the last X captures
-        status.normalizedActiveSections = status.normalizedActiveSections.filter(
-            normalizedSection => {
-                if (!sectionsOccurenceCount[normalizedSection]) {
-                    // old normalized section is not present at all anymore
-                    return false;
-                }
-                return true;
-            }
-        );
-
-        // add the always present sections in
-        alwaysPresentSections.forEach(alwaysPresentSection => {
-            if (!status.normalizedActiveSections.includes(alwaysPresentSection)) {
-                // section is not previously in the array, add it in
-                status.normalizedActiveSections.push(alwaysPresentSection);
+        Object.keys(settings.cameraSettings).forEach(cameraSettingName => {
+            // does the property currently exist in opencv, and has it changed from the current setting?
+            if (
+                cv[cameraSettingName] &&
+                currentCameraSettings[cameraSettingName] !==
+                    settings.cameraSettings[cameraSettingName]
+            ) {
+                wCap.set(cv[cameraSettingName], settings.cameraSettings[cameraSettingName]);
             }
         });
     }
 
-    // debugging
-    // console.log(
-    //     "Normalized: " +
-    //         JSON.stringify(status.normalizedActiveSections) +
-    //         ", Raw: " +
-    //         JSON.stringify(status.activeSections)
-    // );
+    // as a last safety thing, apply the settings from the camera back again,
+    // just in case something didn't stick
+    applyCameraPropertiesToSettings();
 };
+const getCameraProperties = () => {
+    const retrievedSettings = {};
+
+    Object.keys(cv)
+        .filter(propertyName => propertyName.startsWith("CAP_PROP_"))
+        .forEach(propertyName => {
+            retrievedSettings[propertyName] = wCap.get(cv[propertyName]);
+        });
+
+    return retrievedSettings;
+};
+const applyCameraPropertiesToSettings = () => {
+    if (!settings.cameraSettings) {
+        settings.cameraSettings = {};
+    }
+
+    settings.cameraSettings = getCameraProperties();
+
+    db.writeSettings(settings);
+    io.emit(serverMsg.settings, settings);
+};
+
+if (wCap) {
+    applySettingsToCamera();
+    applyCameraPropertiesToSettings();
+}
+
+// for our timings when debugging
+const timerIterations = {
+    general: 0,
+    error: 0,
+    ball: 0,
+    corner: 0
+};
+
+setInterval(() => {
+    status.timings.general = timerIterations.general;
+    timerIterations.general = 0;
+    status.timings.error = timerIterations.error;
+    timerIterations.error = 0;
+    status.timings.ball = timerIterations.ball;
+    timerIterations.ball = 0;
+    status.timings.corners = timerIterations.corner;
+    timerIterations.corner = 0;
+}, 1000);
 
 const cycleMat = (matName, matArray, newMat) => {
     if (matArray[matName] && matArray[matName].release) {
@@ -203,10 +161,11 @@ const cycleMat = (matName, matArray, newMat) => {
 
 // socket endpoints
 io.on(clientMsg.connection, function(socket) {
-    console.log("a user connected");
+    console.log("a browser session connected");
     Object.keys(clientMsg).forEach(key => {
         const msg = clientMsg[key];
 
+        /* eslint-disable indent */
         socket.on(
             msg,
             function(data) {
@@ -230,7 +189,7 @@ io.on(clientMsg.connection, function(socket) {
                             db.writeSettings(newSettings);
                             // use the new settings
                             settings = newSettings;
-                            applySettings();
+                            applySettingsToCamera();
                         } catch (e) {
                             status.errorMessage = "Invalid settings were not saved.";
                         }
@@ -315,6 +274,7 @@ io.on(clientMsg.connection, function(socket) {
                 }
             }.bind(this)
         );
+        /* eslint-enable indent */
     });
 });
 
@@ -327,7 +287,7 @@ let getImagePromise;
 
 let transformationData;
 let skips = 0;
-const maxSkips = 10;
+const maxSkips = settings.cornerIdentification.maxSkips;
 
 const track = () => {
     if (getImagePromise === undefined) {
@@ -337,13 +297,13 @@ const track = () => {
         getImagePromise = getImageAsync();
 
         if (JSON.parse(process.env.showCapture || false)) {
-            let matNames = Object.keys(mats);
-            if(matNames.length > 0) {
+            const matNames = Object.keys(mats);
+            if (matNames.length > 0) {
                 matNames.forEach(matName => {
-                    if(mats[matName] && mats[matName].constructor.name === "Mat") {
+                    if (mats[matName] && mats[matName].constructor.name === "Mat") {
                         cv.imshow(matName, mats[matName]);
                     }
-                })
+                });
                 cv.waitKey(1);
             }
         }
@@ -371,7 +331,7 @@ const track = () => {
                     );
                     skips = 0;
                     status.cornerIdentificationFailCount = 0;
-                    cornerTrackingsPerSecond++;
+                    timerIterations.corner++;
                 } catch (e) {
                     // failed to get corners, at least draw lines
                     if (status.calibrationActive) {
@@ -447,17 +407,17 @@ const track = () => {
                     );
 
                     // set new active sections if there was a change
-                    setActiveSections(activeSections);
+                    setActiveSections(activeSections, status, settings);
 
                     if (status.calibrationActive && settings.visualAid.ballCircle) {
                         // around the ball
                         visualAid.drawBalls(mats["2D Image"], ballData.circles);
                     }
 
-                    ballTrackingsPerSecond++;
+                    timerIterations.ball++;
                 } else {
                     // ball was NOT found
-                    setActiveSections([]);
+                    setActiveSections([], status, settings);
                 }
             }
 
@@ -468,7 +428,7 @@ const track = () => {
                 visualAid.drawBoardLines(mats["Image"], lines);
             }
 
-            generalTrackingsPerSecond++;
+            timerIterations.general++;
             status.errorMessage = "";
             if (captureDelay === 0) {
                 // do it immediately after the promise is fulfilled
@@ -478,7 +438,7 @@ const track = () => {
                 setTimeout(track, captureDelay);
             }
         } catch (e) {
-            errorTrackingsPerSecond++;
+            timerIterations.error++;
             status.errorMessage = e.message;
             console.trace(new Error(e));
             setTimeout(track, failedCaptureDelay);

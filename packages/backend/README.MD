@@ -2,6 +2,8 @@
     - If you change node version while developing, you will need to rebuild opencv (takes a while).
 * `npm install --global windows-build-tools` in elevated console
 * `npm install` (will take some time to build opencv!)
+
+# below stuff not needed.
 * get Python 3.5.4 (source: https://www.python.org/downloads/release/python-354/)
 * do `pip3 install --upgrade tensorflow-gpu`
 * install nvidia CUDA 9.0: https://developer.nvidia.com/cuda-90-download-archive?target_os=Windows&target_arch=x86_64&target_version=10&target_type=exenetwork
