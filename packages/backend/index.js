@@ -150,6 +150,10 @@ setInterval(() => {
     timerIterations.ball = 0;
     status.timings.corners = timerIterations.corner;
     timerIterations.corner = 0;
+
+    if (JSON.parse(process.env.showTimings || false)) {
+        console.log(JSON.stringify(status.timings));
+    }
 }, 1000);
 
 const cycleMat = (matName, matArray, newMat) => {
@@ -160,8 +164,12 @@ const cycleMat = (matName, matArray, newMat) => {
 };
 
 // socket endpoints
+io.on(clientMsg.disconnect, function() {
+    console.log("a browser session or game-server disconnected");
+});
+
 io.on(clientMsg.connection, function(socket) {
-    console.log("a browser session connected");
+    console.log("a browser session or game-server connected");
     Object.keys(clientMsg).forEach(key => {
         const msg = clientMsg[key];
 
@@ -239,7 +247,11 @@ io.on(clientMsg.connection, function(socket) {
                         break;
                     case clientMsg.requestImage:
                         if (data.cameraViewMode && mats[data.cameraViewMode]) {
+                            if (status.calibrationActive === 0) {
+                                console.log("calibration mode: on");
+                            }
                             status.calibrationActive = new Date();
+
                             socket.emit(
                                 serverMsg.activeImage,
                                 Buffer.from(cv.imencode(".png", mats[data.cameraViewMode]))
@@ -299,12 +311,22 @@ const track = () => {
         if (JSON.parse(process.env.showCapture || false)) {
             const matNames = Object.keys(mats);
             if (matNames.length > 0) {
+                let anyShown = false;
+
                 matNames.forEach(matName => {
-                    if (mats[matName] && mats[matName].constructor.name === "Mat") {
+                    if (
+                        mats[matName] &&
+                        mats[matName].constructor.name === "Mat" &&
+                        mats[matName].sizes[0] === settings.resolution.height &&
+                        mats[matName].sizes[1] === settings.resolution.width
+                    ) {
+                        anyShown = true;
                         cv.imshow(matName, mats[matName]);
                     }
                 });
-                cv.waitKey(1);
+                if(anyShown) {
+                    cv.waitKey(1);
+                }
             }
         }
 
@@ -392,7 +414,7 @@ const track = () => {
 
                 if (ballData.circles && ballData.circles.length > 0) {
                     // ball was found
-                    cycleMat("Ball Mask", mats, ballData.mat);
+                    // cycleMat("Ball Mask", mats, ballData.mat);
 
                     // get active sections
                     const activeSections = Object.keys(

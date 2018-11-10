@@ -46,7 +46,7 @@ module.exports = (imageMat, options, targetResolution, drawVisuals) => {
     const contoursBySize = contours.sort((left, right) => right.area - left.area);
     let contour = contoursBySize[0];
 
-    // draw the mat completely black, only draw outer contours
+    // draw the mat completely black to only draw outer contours this time
     maskedCornersMat.drawRectangle(
         new cv.Point2(0, 0),
         new cv.Point2(maskedCornersMat.sizes[1], maskedCornersMat.sizes[0]),

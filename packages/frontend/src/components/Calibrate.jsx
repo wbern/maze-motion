@@ -50,15 +50,15 @@ class Calibrate extends Component {
         this.state = {
             lastActiveSections: null,
             sectionIndexInputValue: 1,
-            cameraFrameSkips: 5,
+            cameraFrameSkips: 10,
             cameraViewMode: "2D Image",
             availableCameraViewModes: [
                 "2D Image",
                 "Image",
                 "Color Filtered Corners Mask",
                 "Corners Mask",
-                "Ball Mask",
-                "Ball Background Mask",
+                // "Ball Mask",
+                // "Ball Background Mask",
                 "Ball Color Filtered Mask"
             ],
             status: {}

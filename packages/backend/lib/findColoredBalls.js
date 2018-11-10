@@ -34,13 +34,24 @@ module.exports = (boardImage, sections, options) => {
         }, 0);
 
     const circles = foundContours.map(contour => {
-        const points = contour.getPoints();
-        return {
-            center: {
-                x: getCenter(points.map(p => p.x)),
-                y: getCenter(points.map(p => p.y)),
-            }
-        };
+        try {
+            var m = contour.moments();
+            return {
+                center: {
+                    x: m["m10"] / m["m00"],
+                    y: m["m01"] / m["m00"]
+                }
+            };
+        } catch(e) {
+            // something wrong with the new method? try the old one instead
+            const points = contour.getPoints();
+            return {
+                center: {
+                    x: getCenter(points.map(p => p.x)),
+                    y: getCenter(points.map(p => p.y)),
+                }
+            };
+        }
     });
 
     const foundBalls = {
