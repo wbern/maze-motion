@@ -324,7 +324,7 @@ const track = () => {
                         cv.imshow(matName, mats[matName]);
                     }
                 });
-                if(anyShown) {
+                if (anyShown) {
                     cv.waitKey(1);
                 }
             }
