@@ -1,6 +1,11 @@
 const cv = require("opencv4nodejs");
 const math = require("mathjs");
 
+// DO NOT USE
+
+// Unfortunately this method turned out to be unstable.
+// Back to using the old method again.
+
 module.exports = (imageMat, options, targetResolution, drawVisuals) => {
     const hsvFrame = imageMat.cvtColor(cv.COLOR_BGR2HSV_FULL);
     let maskedCornersMat;
