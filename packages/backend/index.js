@@ -1,5 +1,5 @@
 const cv = require("opencv4nodejs");
-const getTransformationMatrixMatNew = require("./lib/getTransformationMatrixMatNew");
+const getTransformationMatrixMat = require("./lib/getTransformationMatrixMat");
 const simplifyZones = require("./lib/simplifyZones");
 const adjustZonesResolution = require("./lib/adjustZonesResolution");
 const findColoredBalls = require("./lib/findColoredBalls");
@@ -85,53 +85,56 @@ if (!JSON.parse(process.env.mockCamera || false)) {
 }
 
 // apply settings to camera etc.
-const applySettingsToCamera = () => {
-    // more generic settings for all camera options, works better, no?
-    if (settings.cameraSettings) {
-        const currentCameraSettings = getCameraProperties();
+// const applySettingsToCamera = () => {
+//     // more generic settings for all camera options, works better, no?
+//     if (settings.cameraSettings) {
+//         const currentCameraSettings = getCameraProperties();
 
-        Object.keys(settings.cameraSettings).forEach(cameraSettingName => {
-            // does the property currently exist in opencv, and has it changed from the current setting?
-            if (
-                cv[cameraSettingName] &&
-                currentCameraSettings[cameraSettingName] !==
-                    settings.cameraSettings[cameraSettingName]
-            ) {
-                wCap.set(cv[cameraSettingName], settings.cameraSettings[cameraSettingName]);
-            }
-        });
-    }
+//         Object.keys(settings.cameraSettings).forEach(cameraSettingName => {
+//             // does the property currently exist in opencv, and has it changed from the current setting?
+//             if (
+//                 cv[cameraSettingName] &&
+//                 currentCameraSettings[cameraSettingName] !==
+//                     settings.cameraSettings[cameraSettingName]
+//             ) {
+//                 wCap.set(cv[cameraSettingName], settings.cameraSettings[cameraSettingName]);
+//             }
+//         });
+//     }
 
-    // as a last safety thing, apply the settings from the camera back again,
-    // just in case something didn't stick
-    applyCameraPropertiesToSettings();
-};
-const getCameraProperties = () => {
-    const retrievedSettings = {};
+//     // as a last safety thing, apply the settings from the camera back again,
+//     // just in case something didn't stick
+//     applyCameraPropertiesToSettings();
+// };
+// const getCameraProperties = () => {
+//     const retrievedSettings = {};
 
-    Object.keys(cv)
-        .filter(propertyName => propertyName.startsWith("CAP_PROP_"))
-        .forEach(propertyName => {
-            retrievedSettings[propertyName] = wCap.get(cv[propertyName]);
-        });
+//     Object.keys(cv)
+//         .filter(propertyName => propertyName.startsWith("CAP_PROP_"))
+//         .forEach(propertyName => {
+//             retrievedSettings[propertyName] = wCap.get(cv[propertyName]);
+//         });
 
-    return retrievedSettings;
-};
-const applyCameraPropertiesToSettings = () => {
-    if (!settings.cameraSettings) {
-        settings.cameraSettings = {};
-    }
+//     return retrievedSettings;
+// };
+// const applyCameraPropertiesToSettings = () => {
+//     if (!settings.cameraSettings) {
+//         settings.cameraSettings = {};
+//     }
 
-    settings.cameraSettings = getCameraProperties();
+//     settings.cameraSettings = getCameraProperties();
 
-    db.writeSettings(settings);
-    io.emit(serverMsg.settings, settings);
-};
+//     db.writeSettings(settings);
+//     io.emit(serverMsg.settings, settings);
+// };
 
-if (wCap) {
-    applySettingsToCamera();
-    applyCameraPropertiesToSettings();
-}
+// if (wCap) {
+//     // always reset camera settings, ignore the db completely
+//     settings.cameraSettings = {};
+
+//     // applySettingsToCamera();
+//     // applyCameraPropertiesToSettings();
+// }
 
 // for our timings when debugging
 const timerIterations = {
@@ -197,7 +200,7 @@ io.on(clientMsg.connection, function(socket) {
                             db.writeSettings(newSettings);
                             // use the new settings
                             settings = newSettings;
-                            applySettingsToCamera();
+                            // applySettingsToCamera();
                         } catch (e) {
                             status.errorMessage = "Invalid settings were not saved.";
                         }
@@ -306,50 +309,57 @@ const track = () => {
         getImagePromise = getImageAsync();
     }
     getImagePromise.then(board => {
-        getImagePromise = getImageAsync();
+        try {
+            getImagePromise = getImageAsync();
 
-        if (JSON.parse(process.env.showCapture || false)) {
-            const matNames = Object.keys(mats);
-            if (matNames.length > 0) {
-                let anyShown = false;
+            if (board.empty) {
+                throw new Error("captured frame was empty. Is camera open elsewhere?");
+            }
 
-                matNames.forEach(matName => {
-                    if (
-                        mats[matName] &&
-                        mats[matName].constructor.name === "Mat" &&
-                        mats[matName].sizes[0] === settings.resolution.height &&
-                        mats[matName].sizes[1] === settings.resolution.width
-                    ) {
-                        anyShown = true;
-                        cv.imshow(matName, mats[matName]);
+            if (JSON.parse(process.env.showCapture || false)) {
+                const matNames = Object.keys(mats);
+                if (matNames.length > 0) {
+                    let anyShown = false;
+
+                    matNames.forEach(matName => {
+                        if (
+                            mats[matName] &&
+                            mats[matName].constructor.name === "Mat" &&
+                            mats[matName].sizes[0] === settings.resolution.height &&
+                            mats[matName].sizes[1] === settings.resolution.width
+                        ) {
+                            anyShown = true;
+                            cv.imshow(matName, mats[matName]);
+                        }
+                    });
+                    if (anyShown) {
+                        cv.waitKey(1);
                     }
-                });
-                if (anyShown) {
-                    cv.waitKey(1);
                 }
             }
-        }
 
-        cycleMat("Image", mats, board);
+            cycleMat("Image", mats, board);
 
-        // don't show visual aid things while not calibrating
-        if (status.calibrationActive > 0 && Number(status.calibrationActive) < new Date() - 3000) {
-            console.log("calibration mode off");
-            status.calibrationActive = 0;
-        }
+            // don't show visual aid things while not calibrating
+            if (
+                status.calibrationActive > 0 &&
+                Number(status.calibrationActive) < new Date() - 3000
+            ) {
+                console.log("calibration mode off");
+                status.calibrationActive = 0;
+            }
 
-        try {
             // get image transformation using corners
             // Cost: 30 FPS, 90-120 -> 50-60
             skips++;
 
             if (!transformationData || skips >= maxSkips) {
                 try {
-                    transformationData = getTransformationMatrixMatNew(
+                    transformationData = getTransformationMatrixMat(
                         mats["Image"],
                         settings.cornerIdentification,
                         settings.resolution,
-                        status.calibrationActive
+                        status.calibrationActive !== 0
                     );
                     skips = 0;
                     status.cornerIdentificationFailCount = 0;
@@ -419,6 +429,10 @@ const track = () => {
                     // get active sections
                     const activeSections = Object.keys(
                         ballData.circles.reduce((collection, circle) => {
+                            if (isNaN(circle.center.x) || isNaN(circle.center.y)) {
+                                return collection;
+                            }
+
                             return {
                                 ...collection,
                                 ...pigeonHoledSections[parseInt(circle.center.x)][
@@ -429,7 +443,8 @@ const track = () => {
                     );
 
                     // set new active sections if there was a change
-                    setActiveSections(activeSections, status, settings);
+                    setActiveSections(activeSections, status, settings, true);
+                    status.ballPresent = true;
 
                     if (status.calibrationActive && settings.visualAid.ballCircle) {
                         // around the ball
@@ -440,6 +455,7 @@ const track = () => {
                 } else {
                     // ball was NOT found
                     setActiveSections([], status, settings);
+                    status.ballPresent = false;
                 }
             }
 
@@ -462,7 +478,14 @@ const track = () => {
         } catch (e) {
             timerIterations.error++;
             status.errorMessage = e.message;
-            console.trace(new Error(e));
+
+            // remove extras
+            delete e.maskedCornersMat;
+            delete e.colorFilteredCornersMat;
+            delete e.lines;
+            delete e.foundContours;
+
+            console.trace(e);
             setTimeout(track, failedCaptureDelay);
         }
     });

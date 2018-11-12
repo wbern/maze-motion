@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "logitech-settings": "logidppapp",
     "start": "lerna run start --parallel",
     "start-without-backend": "lerna run start --parallel --ignore maze-motion-backend",
     "start:prod": "lerna run start:prod --parallel"

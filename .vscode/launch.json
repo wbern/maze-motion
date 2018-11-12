@@ -22,6 +22,12 @@
             "runtimeExecutable": "node",
             "runtimeArgs": ["--inspect-brk=9229"],
             "cwd": "${workspaceFolder}/packages/backend",
+            // "env": {
+            //     "OPENCV4NODEJS_DISABLE_AUTOBUILD": 1,
+            //     "OPENCV_INCLUDE_DIR": "./opencv/build/include",
+            //     "OPENCV_LIB_DIR": "./opencv/build/x64/vc15/lib",
+            //     "OPENCV_BIN_DIR": "./opencv/build/x64/vc15/bin"
+            // },
             "program": "${workspaceFolder}/packages/backend/index.js",
             "port": 9229
         },

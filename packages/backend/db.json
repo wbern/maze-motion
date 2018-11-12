@@ -5,37 +5,7 @@
         {
           "y": 0,
           "x": 240,
-          "width": 130,
-          "height": 50
-        },
-        {
-          "y": 0,
-          "x": 370,
-          "width": 10,
-          "height": 20
-        },
-        {
-          "y": 40,
-          "x": 370,
-          "width": 10,
-          "height": 10
-        },
-        {
-          "y": 0,
-          "x": 380,
-          "width": 10,
-          "height": 20
-        },
-        {
-          "y": 40,
-          "x": 380,
-          "width": 10,
-          "height": 10
-        },
-        {
-          "y": 0,
-          "x": 390,
-          "width": 20,
+          "width": 170,
           "height": 50
         },
         {
@@ -53,6 +23,12 @@
           "x": 80,
           "width": 40,
           "height": 40
+        },
+        {
+          "y": 10,
+          "x": 120,
+          "width": 40,
+          "height": 150
         }
       ]
     },
@@ -964,8 +940,8 @@
     },
     "cornerIdentification": {
       "cornerPadding": 5,
-      "cornerDilation": 1,
-      "erodePixels": 2,
+      "cornerDilation": 0,
+      "erodePixels": 3,
       "xScale": 1.3,
       "yScale": 1,
       "boardPadding": 10,
@@ -980,19 +956,19 @@
       "houghLinesMinLineLength": 200,
       "houghLinesMaxLineGap": 1000,
       "approxPolyDP": true,
-      "maxSkips": 10,
+      "maxSkips": 0,
       "closed": false,
       "epsilonPercentage": 0.005,
       "acceptedMarginsForIntersectionsPercentage": 1.5,
       "cornerHSVMasks": [
         {
           "min": [
-            30,
-            65,
-            120
+            40,
+            75,
+            90
           ],
           "max": [
-            55,
+            120,
             255,
             255
           ]
@@ -1011,9 +987,9 @@
       "ballHSVMasks": [
         {
           "min": [
-            50,
-            200,
-            200
+            140,
+            100,
+            80
           ],
           "max": [
             200,
@@ -1024,43 +1000,43 @@
       ]
     },
     "cameraSettings": {
-      "CAP_PROP_POS_MSEC": -1,
-      "CAP_PROP_POS_FRAMES": -1,
+      "CAP_PROP_POS_MSEC": 0,
+      "CAP_PROP_POS_FRAMES": 0,
       "CAP_PROP_POS_AVI_RATIO": -1,
       "CAP_PROP_FRAME_WIDTH": 640,
       "CAP_PROP_FRAME_HEIGHT": 480,
-      "CAP_PROP_FPS": 0,
-      "CAP_PROP_FOURCC": 844715353,
+      "CAP_PROP_FPS": 30,
+      "CAP_PROP_FOURCC": 20,
       "CAP_PROP_FRAME_COUNT": -1,
-      "CAP_PROP_FORMAT": -1,
-      "CAP_PROP_MODE": -1,
-      "CAP_PROP_BRIGHTNESS": 0,
-      "CAP_PROP_CONTRAST": 45,
-      "CAP_PROP_SATURATION": 50,
-      "CAP_PROP_HUE": 0,
-      "CAP_PROP_GAIN": 1,
-      "CAP_PROP_EXPOSURE": -6,
-      "CAP_PROP_CONVERT_RGB": -1,
-      "CAP_PROP_WHITE_BALANCE_BLUE_U": 4600,
+      "CAP_PROP_FORMAT": 0,
+      "CAP_PROP_MODE": 1,
+      "CAP_PROP_BRIGHTNESS": 128,
+      "CAP_PROP_CONTRAST": 32,
+      "CAP_PROP_SATURATION": 32,
+      "CAP_PROP_HUE": -1,
+      "CAP_PROP_GAIN": 192,
+      "CAP_PROP_EXPOSURE": -2,
+      "CAP_PROP_CONVERT_RGB": 1,
+      "CAP_PROP_WHITE_BALANCE_BLUE_U": -1,
       "CAP_PROP_RECTIFICATION": -1,
-      "CAP_PROP_MONOCHROME": 19,
+      "CAP_PROP_MONOCHROME": -1,
       "CAP_PROP_SHARPNESS": 2,
-      "CAP_PROP_AUTO_EXPOSURE": -1,
-      "CAP_PROP_GAMMA": 100,
-      "CAP_PROP_TEMPERATURE": -1,
+      "CAP_PROP_AUTO_EXPOSURE": 0,
+      "CAP_PROP_GAMMA": -1,
+      "CAP_PROP_TEMPERATURE": 4000,
       "CAP_PROP_TRIGGER": -1,
       "CAP_PROP_TRIGGER_DELAY": -1,
       "CAP_PROP_WHITE_BALANCE_RED_V": -1,
-      "CAP_PROP_ZOOM": 27,
-      "CAP_PROP_FOCUS": 28,
+      "CAP_PROP_ZOOM": -1,
+      "CAP_PROP_FOCUS": -1,
       "CAP_PROP_GUID": -1,
       "CAP_PROP_ISO_SPEED": -1,
-      "CAP_PROP_BACKLIGHT": 3,
-      "CAP_PROP_PAN": 33,
-      "CAP_PROP_TILT": 34,
-      "CAP_PROP_ROLL": 35,
-      "CAP_PROP_IRIS": 36,
-      "CAP_PROP_SETTINGS": 0,
+      "CAP_PROP_BACKLIGHT": 0,
+      "CAP_PROP_PAN": -1,
+      "CAP_PROP_TILT": -1,
+      "CAP_PROP_ROLL": -1,
+      "CAP_PROP_IRIS": -1,
+      "CAP_PROP_SETTINGS": -1,
       "CAP_PROP_BUFFERSIZE": -1,
       "CAP_PROP_AUTOFOCUS": -1
     }

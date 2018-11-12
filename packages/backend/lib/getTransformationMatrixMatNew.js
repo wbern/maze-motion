@@ -37,7 +37,7 @@ module.exports = (imageMat, options, targetResolution, drawVisuals) => {
     const contours = maskedCornersMat.findContours(mode, findContoursMethod);
 
     if (contours.length === 0) {
-        const e = Error("Could not identify contours of the board");
+        const e = new Error("Could not identify contours of the board");
         e.maskedCornersMat = maskedCornersMat;
         e.colorFilteredCornersMat = colorFilteredCornersMat;
         throw e;
@@ -83,7 +83,7 @@ module.exports = (imageMat, options, targetResolution, drawVisuals) => {
 
     if (lines.length < 4) {
         // no lines found or just a few, assume something's wrong.
-        const e = Error("Could not identify enough lines of the board, got " + lines.length + ".");
+        const e = new Error("Could not identify enough lines of the board, got " + lines.length + ".");
         e.lines = lines;
         e.maskedCornersMat = maskedCornersMat;
         e.colorFilteredCornersMat = colorFilteredCornersMat;
@@ -172,6 +172,15 @@ module.exports = (imageMat, options, targetResolution, drawVisuals) => {
     const tl = new cv.Point2(brAndtl[brAndtl.length - 1].x, brAndtl[brAndtl.length - 1].y);
     const tr = new cv.Point2(trAndbl[0].x, trAndbl[0].y);
     const bl = new cv.Point2(trAndbl[trAndbl.length - 1].x, trAndbl[trAndbl.length - 1].y);
+
+    if(Math.abs(bl.y - tl.y) < 50 || Math.abs(tl.x - tr.x) < 50) {
+        // not enough spacing between corners, assume it's wrong
+        const e = new Error("Could not properly identify all corners, not enough crossings.");
+        e.lines = lines;
+        e.maskedCornersMat = maskedCornersMat;
+        e.colorFilteredCornersMat = colorFilteredCornersMat;
+        throw e;
+    }
 
     if (drawVisuals) {
         intersections.forEach(intersection => {

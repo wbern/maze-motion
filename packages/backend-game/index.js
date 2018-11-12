@@ -18,11 +18,11 @@ const modes = {
 };
 
 const settings = {
-    ballMissingSecondsLimit: 3,
-    ballSectionChangeAcceptanceLimit: 7,
-    defaultName: "Anonymous",
+    ballMissingSecondsLimit: 2,
+    ballSectionChangeAcceptanceLimit: 10,
+    defaultName: "DateIT Attender",
     nameCharacterLimit: 30,
-    badDetectionLimit: 4
+    badDetectionLimit: 1
 };
 
 let status = {};
@@ -161,6 +161,10 @@ backendSocket.on(
                         emitCurrentModeAndStatus();
                         break;
                     case serverMsg.status:
+                        if(data.ballPresent === false) {
+                            onBallMissing();
+                        }
+
                         if (data.timings.corners < settings.badDetectionLimit) {
                             io.emit(gameServerMsg.badDetection);
                         } else if (data.timings.error > 0) {
@@ -238,6 +242,7 @@ const changeMode = mode => {
             resetStatus(); // to clear any old values
             status.startTime = new Date();
             status.gameStarted = true;
+            console.log("status change");
             emitCurrentModeAndStatus(mode);
             break;
         case modes.finish:
@@ -337,14 +342,14 @@ const onActiveSections = activeSections => {
                 switchSection(nextSection);
             } else {
                 // ball is not in a legit position, mark it as missing
-                onBallMissing();
+                // onBallMissing();
             }
         } else {
             // game is not started yet, and one of the ..
             if (nextSection === 0) {
                 // active sections is the starting area (0)
                 changeMode(modes.ready);
-            } else if (status.currentMode === modes.ready && nextSection !== 0 && isLegit) {
+            } else if (status.currentMode === modes.ready && isLegit) {
                 // game mode was previously "ready"
                 // active sections does not include starting area (0)
                 // and it seems like a legit section change
@@ -358,10 +363,10 @@ const onActiveSections = activeSections => {
             }
         }
     } else {
-        // ball missing
+        // ball is not in any section
         if (status.gameStarted) {
             // game is started, but ball is gone
-            onBallMissing();
+            // onBallMissing();
         } else {
             // game is not started
             if (status.currentMode !== modes.instructions && status.currentMode !== modes.finish) {
